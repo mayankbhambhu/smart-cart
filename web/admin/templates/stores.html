@@ -1,0 +1,21 @@
+{% extends "layout.html" %}{% block heading %}Stores & owners{% endblock %}
+{% block content %}
+<div class="card table-wrap"><table>
+  <tr><th>Store</th><th>Owner</th><th>Employees</th><th>Est. monthly wage bill</th><th>Status</th><th></th></tr>
+  {% for s in stores %}<tr><td><a href="/stores/{{ s.id }}"><b>{{ s.name }}</b></a><br><small>{{ s.code }} · {{ s.address }}, {{ s.city }}</small></td>
+    <td>{% if s.owner %}{{ s.owner.name }}<br><small>{{ s.owner.phone }} · {{ s.owner.email }}</small>{% else %}—{% endif %}</td>
+    <td>{{ s.employee_count }}</td><td>{{ s.monthly_wage_bill_estimate|inr }}</td>
+    <td><span class="badge {{ 'ok' if s.is_active else 'danger' }}">{{ 'active' if s.is_active else 'suspended' }}</span></td>
+    <td><form method="post" action="/stores/{{ s.id }}/toggle"><button class="btn sm sec">{{ 'Suspend' if s.is_active else 'Activate' }}</button></form></td></tr>{% endfor %}
+</table></div>
+<details class="card"><summary>➕ Onboard a new store</summary>
+  <form method="post" action="/stores" class="form-grid" style="margin-top:12px">
+    <div><label>Store code</label><input name="code" required placeholder="DEL01"></div><div><label>Name</label><input name="name" required></div>
+    <div><label>Address</label><input name="address" required></div><div><label>City</label><input name="city" required></div>
+    <div><label>Pincode</label><input name="pincode"></div><div><label>Store phone</label><input name="phone"></div>
+    <div><label>Latitude</label><input name="latitude" type="number" step="any" required></div><div><label>Longitude</label><input name="longitude" type="number" step="any" required></div>
+    <div><label>Aisles</label><input name="aisle_count" type="number" value="8"></div><div><label>Rows per aisle</label><input name="rows_per_aisle" type="number" value="6"></div>
+    <div><label>Owner name</label><input name="owner_name" required></div><div><label>Owner email</label><input name="owner_email" type="email" required></div>
+    <div><label>Owner phone</label><input name="owner_phone" required></div><div><button class="btn">Create store + owner login</button></div>
+  </form></details>
+{% endblock %}

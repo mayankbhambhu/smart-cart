@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth"><div class="card">
+  <div class="logo" style="padding-left:0"><i>F</i><span>FreshFlow<small>{{ subtitle }}</small></span></div>
+  {% include "_flash.html" %}
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next or '/' }}">
+    <div class="field"><label>Email or phone</label><input name="identifier" required autofocus value="{{ demo or '' }}"></div>
+    <div class="field"><label>Password</label><input name="password" type="password" required></div>
+    <button class="btn block lg">Sign in</button>
+  </form>
+  {% block extra %}{% endblock %}
+  {% if demo_accounts %}<div class="divider">demo accounts · password Password@123</div>
+  <div class="muted" style="font-size:.82rem">{% for a in demo_accounts %}<div>{{ a }}</div>{% endfor %}</div>{% endif %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}{% block heading %}{{ store.name }}{% endblock %}
+{% block content %}
+{% if report %}{% set k = report.kpis %}
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="card kpi"><div class="l">Net sales today</div><div class="v">{{ k.net_sales|inr }}</div><div class="d muted">{{ k.orders }} orders · avg {{ k.avg_basket|inr }}</div></div>
+  <div class="card kpi"><div class="l">Gross profit today</div><div class="v">{{ k.gross_profit|inr }}</div><div class="d muted">{{ k.margin_percent }}% margin</div></div>
+  <div class="card kpi"><div class="l">Items sold</div><div class="v">{{ k.items_sold }}</div><div class="d muted">{{ k.customers }} customers</div></div>
+  <div class="card kpi"><div class="l">Staff on the clock</div><div class="v">{{ employees|selectattr('on_clock')|list|length }} / {{ employees|length }}</div><div class="d muted">open restock alerts: {{ alerts|length }}</div></div>
+</div>{% endif %}
+<div class="grid g2">
+  <div class="card">
+    <div class="row between"><h2>My work</h2><a href="/tasks">All tasks →</a></div>
+    <p class="muted">{% if clock.on_clock %}🟢 On the clock since {{ clock.since|dt('%I:%M %p') }}{% else %}⚪ Not clocked in{% endif %}</p>
+    {% for t in my_tasks %}<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><span class="badge {{ t.priority }}">{{ t.priority }}</span> {{ t.title }}</span><span class="badge {{ t.status }}">{{ t.status|nice }}</span></div>
+    {% else %}<p class="muted">No open tasks 🎉</p>{% endfor %}
+    <h3 style="margin-top:14px">Upcoming shifts</h3>
+    {% for s in my_shifts %}<div>{{ s.label }} · {{ s.starts_at|dt('%a %d %b, %I:%M %p') }} – {{ s.ends_at|dt('%I:%M %p') }}</div>{% else %}<p class="muted">No upcoming shifts.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <div class="row between"><h2>⚠️ Restock alerts</h2><a href="/inventory?low=1">Low stock →</a></div>
+    {% for a in alerts %}<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span><b>{{ a.product }}</b><br><small>Aisle {{ a.aisle }}, Row {{ a.row }} · {{ a.quantity_now }} left</small></span><span class="badge {{ a.status }}">{{ a.status }}</span></div>
+    {% else %}<p class="muted">All shelves stocked.</p>{% endfor %}
+  </div>
+  {% if to_review is defined %}<div class="card"><div class="row between"><h2>Completed work to review</h2><a href="/tasks?status=done">Review →</a></div>
+    {% for t in to_review[:6] %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>{{ t.title }}</b> — {{ t.assigned_to.name }}<br><small>“{{ t.completion_note }}”</small></div>{% else %}<p class="muted">Nothing waiting.</p>{% endfor %}</div>{% endif %}
+  <div class="card"><h2>Live activity</h2><div id="feed" class="feed muted">Live store events (sales, gate scans, stock) appear here.</div>
+    <h3 style="margin-top:12px">Notifications</h3>{% for n in notifications %}<div style="font-size:.85rem;padding:4px 0"><b>{{ n.title }}</b> <small>{{ n.created_at|dt('%d %b %I:%M %p') }}</small></div>{% endfor %}</div>
+</div>
+{% endblock %}
+{% block page_scripts %}<script>
+const _prev = window.onLive;
+window.onLive = (e) => { _prev && _prev(e); if (e.event === 'subscribed') return;
+  const f = document.getElementById('feed'); if (f.classList.contains('muted')) { f.textContent = ''; f.classList.remove('muted'); }
+  const d = document.createElement('div'); d.textContent = new Date().toLocaleTimeString() + ' · ' + e.event.replace('_', ' ') + ' · ' +
+    (e.data.product || e.data.number || e.data.reason || e.data.name || e.data.title || JSON.stringify(e.data).slice(0, 80)); f.prepend(d); };
+</script>{% endblock %}

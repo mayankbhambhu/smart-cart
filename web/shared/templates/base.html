@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/vendor/htmx.min.js"></script>
+<script src="/static/live.js"></script>
+{% block head %}{% endblock %}
+</head>
+<body data-app="{{ APP_ACCENT }}">
+{% block body %}{% endblock %}
+{% if user and token %}
+<script>
+FF.live({api: "{{ PUBLIC_API_URL }}", token: "{{ token }}", channels: {{ live_channels|default([])|tojson }},
+  on: (e) => { if (window.onLive) window.onLive(e); }});
+</script>
+{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

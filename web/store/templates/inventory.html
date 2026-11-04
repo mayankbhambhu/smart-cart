@@ -1,0 +1,23 @@
+{% extends "layout.html" %}{% block heading %}Live inventory{% endblock %}
+{% block content %}
+<form class="row" style="margin-bottom:14px"><input name="q" value="{{ q }}" placeholder="Search product" style="flex:1">
+  <label class="row" style="margin:0"><input type="checkbox" name="low" value="1" {{ 'checked' if low }}> Low stock only</label><button class="btn">Filter</button></form>
+<div class="card table-wrap"><table id="inv">
+  <tr><th>Product</th><th>Location</th><th>Stock</th><th>Threshold</th><th>Restock</th>{% if user.role != 'worker' %}<th>Edit location / threshold</th>{% endif %}</tr>
+  {% for r in rows %}<tr data-inv="{{ r.id }}">
+    <td><b>{{ r.name }}</b><br><small>{{ r.sku }} · {{ r.price|inr }}</small></td>
+    <td><span class="loc">Aisle {{ r.aisle }}, Row {{ r.row }}</span></td>
+    <td><b class="qty-cell">{{ r.quantity }}</b> {% if r.low %}<span class="badge danger">LOW</span>{% endif %}</td>
+    <td>{{ r.threshold }}</td>
+    <td><form method="post" action="/inventory/{{ r.id }}" class="row"><input name="quantity_delta" type="number" min="1" placeholder="+qty" style="width:80px" value="{{ r.restock_to - r.quantity if r.low else '' }}"><button class="btn sm">Add</button></form></td>
+    {% if user.role != 'worker' %}<td><form method="post" action="/inventory/{{ r.id }}" class="row"><input name="aisle" type="number" min="1" value="{{ r.aisle }}" style="width:58px"><input name="row" type="number" min="1" value="{{ r.row }}" style="width:58px"><input name="low_stock_threshold" type="number" min="0" value="{{ r.threshold }}" style="width:64px"><button class="btn sm sec">Save</button></form></td>{% endif %}
+  </tr>{% else %}<tr><td colspan="6" class="empty">No products</td></tr>{% endfor %}
+</table></div>
+{% endblock %}
+{% block page_scripts %}<script>
+const _p = window.onLive;
+window.onLive = (e) => { _p && _p(e);
+  if (e.event !== 'inventory') return;
+  const row = document.querySelector(`tr[data-inv="${e.data.inventory_id}"]`); if (!row) return;
+  const c = row.querySelector('.qty-cell'); c.textContent = e.data.quantity; row.style.background = '#fff8d6'; setTimeout(() => row.style.background = '', 1500); };
+</script>{% endblock %}

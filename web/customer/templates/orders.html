@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Purchase history</h1>
+<div class="card table-wrap"><table>
+  <tr><th>Order</th><th>Date</th><th>Store</th><th>Type</th><th>Status</th><th style="text-align:right">Total</th></tr>
+  {% for o in orders %}<tr><td><a href="/orders/{{ o.id }}">{{ o.number }}</a><br><small>{{ o['items']|length }} items</small></td><td>{{ o.paid_at|dt }}</td><td>{{ o.store_name }}</td>
+    <td>{{ o.fulfilment|nice }}</td><td><span class="badge {{ o.status }}">{{ o.status|nice }}</span></td><td style="text-align:right"><b>{{ o.total|inr }}</b></td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No orders yet</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

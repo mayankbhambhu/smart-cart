@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar"><h1>Family shopping lists</h1></div>
+<div class="grid g2">
+  <form method="post" action="/lists" class="card row"><input name="name" placeholder="New list name, e.g. Weekly groceries" required style="flex:1"><button class="btn">Create list</button></form>
+  <form method="post" action="/lists/join" class="card row"><input name="code" placeholder="Invite code from family, e.g. VERMA1" required style="flex:1"><button class="btn sec">Join list</button></form>
+</div>
+<div class="grid g3" style="margin-top:16px">{% for l in lists %}
+  <a class="card" href="/lists/{{ l.id }}" style="color:inherit;text-decoration:none">
+    <h2>📝 {{ l.name }}</h2><div class="muted">{{ l.open_count }} to buy · {{ l.item_count }} items · {{ l.member_count }} member{{ 's' if l.member_count > 1 }}</div>
+    <div style="margin-top:8px"><span class="badge">Invite code {{ l.invite_code }}</span></div></a>
+{% else %}<div class="card empty">No lists yet. Create one and share the invite code with your family.</div>{% endfor %}</div>
+{% endblock %}

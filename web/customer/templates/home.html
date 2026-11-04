@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card" style="background:linear-gradient(120deg,var(--brand),#2fa866);color:#fff;border:0">
+  <div class="row between">
+    <div><h1 style="margin:0">Hi {{ me.full_name.split(' ')[0] or 'there' }} 👋</h1>
+      <div style="opacity:.9">{{ cart.store_name }} · {{ cart.mode|nice }}{% if cart.mode == 'delivery' %} in ~12 min{% endif %}</div></div>
+    <form method="post" action="/cart/setup" class="row">
+      <select name="store_id">{% for s in stores %}<option value="{{ s.id }}" {{ 'selected' if s.id == cart.store_id }}>{{ s.name }}</option>{% endfor %}</select>
+      <select name="mode">{% for m in ['delivery','pickup','instore'] %}<option value="{{ m }}" {{ 'selected' if m == cart.mode }}>{{ {'delivery':'🚴 Delivery','pickup':'🏬 Store pickup','instore':'📱 Shop in store'}[m] }}</option>{% endfor %}</select>
+      <button class="btn sec">Switch</button>
+    </form>
+  </div>
+</div>
+{% if offers %}<div class="chips" style="margin:14px 0">{% for o in offers %}<span class="chip">🏷️ <b>{{ o.code }}</b> · {{ o.title }}</span>{% endfor %}</div>{% endif %}
+<form class="row" style="margin:14px 0">
+  <input name="q" value="{{ q }}" placeholder="Search milk, atta, chips… or where is it in the store?" style="flex:1;min-width:220px">
+  {% if category_id %}<input type="hidden" name="category_id" value="{{ category_id }}">{% endif %}
+  <label class="row" style="margin:0"><input type="checkbox" name="diet" value="1" {{ 'checked' if diet }} onchange="this.form.submit()"> Match my diet {% if me.dietary_preferences %}({{ me.dietary_preferences|map('replace','_',' ')|join(', ') }}){% endif %}</label>
+  <button class="btn">Search</button>
+</form>
+<div class="chips" style="margin-bottom:16px">
+  <a class="chip {{ 'active' if not category_id }}" href="/?q={{ q }}">All</a>
+  {% for c in categories %}<a class="chip {{ 'active' if c.id == category_id }}" href="/?category_id={{ c.id }}&q={{ q }}">{{ c.icon }} {{ c.name }}</a>{% endfor %}
+</div>
+{% if products %}<div class="products">{% for p in products %}{% include "_product.html" %}{% endfor %}</div>
+{% else %}<div class="card empty">No products match. Try another search.</div>{% endif %}
+{% endblock %}

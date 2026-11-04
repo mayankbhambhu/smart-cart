@@ -1,0 +1,21 @@
+<div class="product">
+  <div class="img">{{ icons.get(p.category_id, '🛒') }}</div>
+  <div class="name">{{ p.name }}</div>
+  <small>{{ p.brand }} · {{ p.unit }}</small>
+  <div class="row" style="gap:6px"><span class="loc">📍 {{ p.location }}</span>
+    {% if not p.in_stock %}<span class="badge danger">Out of stock</span>{% elif p.quantity < 10 %}<span class="badge warn">Only {{ p.quantity }} left</span>{% endif %}</div>
+  <div class="row between" style="margin-top:auto">
+    <div><span class="price">{{ p.price|inr }}</span>{% if p.mrp > p.price %}<span class="mrp">{{ p.mrp|inr }}</span>{% endif %}</div>
+    {% set q = in_cart.get(p.id, 0) %}
+    {% if q %}
+    <div class="qty">
+      <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ p.id }}"><input type="hidden" name="quantity" value="{{ q - 1 }}"><button>−</button></form>
+      <span>{{ q }}</span>
+      <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ p.id }}"><input type="hidden" name="quantity" value="{{ q + 1 }}"><button>+</button></form>
+    </div>
+    {% else %}
+    <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ p.id }}"><input type="hidden" name="quantity" value="1">
+      <button class="btn sm sec" {{ 'disabled' if not p.in_stock }}>ADD</button></form>
+    {% endif %}
+  </div>
+</div>

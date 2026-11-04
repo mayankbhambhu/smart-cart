@@ -1,0 +1,23 @@
+{% extends "layout.html" %}{% block heading %}Shift schedule{% endblock %}
+{% block content %}
+<div class="row between" style="margin-bottom:12px"><a class="btn sec sm" href="?start={{ prev }}">← Previous week</a><b>{{ start.strftime('%d %b') }} – {{ days[-1].strftime('%d %b %Y') }}</b><a class="btn sec sm" href="?start={{ next }}">Next week →</a></div>
+<div class="card table-wrap"><table>
+  <tr><th>Employee</th>{% for d in days %}<th>{{ d.strftime('%a %d') }}</th>{% endfor %}<th>Hours</th></tr>
+  {% for uid, p in people.items() %}<tr><td><b>{{ p.name }}</b></td>
+    {% for d in days %}<td>{% for s in p.days[d.isoformat()] %}<div class="badge {{ 'info' if s.label == 'Evening' else 'ok' }}" style="margin-bottom:3px">{{ s.label or 'Shift' }} {{ s.starts_at[11:16] }}–{{ s.ends_at[11:16] }}</div>
+      {% if user.role in ('owner', 'store_manager') %}<form method="post" action="/shifts/{{ s.id }}/delete" style="display:inline"><button class="btn ghost sm" title="Remove">✕</button></form>{% endif %}{% endfor %}</td>{% endfor %}
+    <td>{{ p.hours|round(1) }}</td></tr>
+  {% else %}<tr><td colspan="9" class="empty">No shifts this week</td></tr>{% endfor %}
+</table></div>
+{% if user.role in ('owner', 'store_manager') %}
+<div class="card"><h2>Assign a shift</h2>
+  <form method="post" action="/shifts" class="form-grid">
+    <div><label>Employee</label><select name="user_id">{% for e in employees if e.is_active and e.role != 'owner' %}<option value="{{ e.id }}">{{ e.name }} · {{ e.role|nice }}</option>{% endfor %}</select></div>
+    <div><label>Date</label><input type="date" name="day" value="{{ start.isoformat() }}" required></div>
+    <div><label>Start</label><input type="time" name="start_time" value="07:00" required></div>
+    <div><label>End</label><input type="time" name="end_time" value="15:00" required></div>
+    <div><label>Label</label><select name="label"><option>Morning</option><option>Evening</option><option>Night</option></select></div>
+    <div><label>Repeat for days</label><input type="number" name="repeat_days" value="1" min="1" max="14"></div>
+    <div><button class="btn">Assign</button></div>
+  </form></div>{% endif %}
+{% endblock %}

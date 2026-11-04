@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo"><i>F</i><span>FreshFlow<small>Store Operations</small></span></div>
+    <nav class="nav">{% for href, label, icon, _ in nav %}
+      <a href="{{ href }}" class="{{ 'active' if path == href or (href != '/' and path.startswith(href)) }}">{{ icon }} {{ label }}</a>{% endfor %}
+      <div class="sep">Account</div>
+      <a href="/account">🔑 Password</a><a href="/logout">↩ Log out</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div><h1>{% block heading %}{% endblock %}</h1></div>
+      <div class="row"><span class="muted" style="font-size:.85rem"><span class="live-dot"></span>{{ user.full_name }} · {{ user.role|nice }}</span>
+        <form method="post" action="/clock"><button class="btn sm sec">⏱ Clock in / out</button></form></div>
+    </div>
+    {% include "_flash.html" %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+window.onLive = window.onLive || ((e) => {
+  const t = {restock_alert: e => ['Restock needed', `${e.data.product} — Aisle ${e.data.aisle}, Row ${e.data.row} (${e.data.quantity} left)`],
+             order_paid: e => [`New ${e.data.fulfilment} order`, `${e.data.number} · ₹${e.data.total}`],
+             gate: e => [e.data.open ? 'Gate opened' : 'Gate denied', `${e.data.gate}: ${e.data.reason}`],
+             attendance: e => ['Attendance', `${e.data.name} ${e.data.action.replace('_', ' ')}`]}[e.event];
+  if (t) FF.toast(...t(e));
+});
+</script>{% block page_scripts %}{% endblock %}{% endblock %}

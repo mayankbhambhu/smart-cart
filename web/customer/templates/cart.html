@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar"><h1>Your cart</h1>
+  <form method="post" action="/cart/setup" class="row">
+    <select name="store_id">{% for s in stores %}<option value="{{ s.id }}" {{ 'selected' if s.id == cart.store_id }}>{{ s.name }}</option>{% endfor %}</select>
+    <div class="tabs" style="margin:0">{% for m, l in [('delivery','🚴 Delivery'),('pickup','🏬 Pickup'),('instore','📱 In store')] %}
+      <button name="mode" value="{{ m }}" class="btn sm {{ '' if m == cart.mode else 'sec' }}">{{ l }}</button>{% endfor %}</div>
+  </form>
+</div>
+<div class="split">
+  <div class="card">
+    {% if not cart['items'] %}<div class="empty">Your cart is empty. {% if lists %}
+      <form method="post" action="/cart/from-list/{{ lists[0].id }}" style="margin-top:10px"><button class="btn">Add everything from “{{ lists[0].name }}”</button></form>{% endif %}</div>{% endif %}
+    <table>{% for i in cart['items'] %}
+      <tr><td><b>{{ i.name }}</b><br><small>{{ i.unit }}</small> {% if i.location %}<span class="loc">📍 {{ i.location }}</span>{% endif %}</td>
+        <td><div class="qty">
+          <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity - 1 }}"><button>−</button></form>
+          <span>{{ i.quantity }}</span>
+          <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity + 1 }}"><button>+</button></form></div></td>
+        <td style="text-align:right"><b>{{ i.line_total|inr }}</b></td></tr>{% endfor %}
+    </table>
+    {% if cart['items'] and lists %}<details style="margin-top:12px"><summary>Add from a family list</summary>
+      <div class="row" style="margin-top:8px">{% for l in lists %}<form method="post" action="/cart/from-list/{{ l.id }}"><button class="btn sm sec">{{ l.name }} ({{ l.open_count }})</button></form>{% endfor %}</div></details>{% endif %}
+  </div>
+  <div class="card">
+    <form method="post" action="/cart/offer" class="row" style="margin-bottom:12px">
+      <input name="code" placeholder="Offer code" value="{{ cart.offer_code or '' }}" style="flex:1"><button class="btn sec">Apply</button></form>
+    {% if cart.offer_message %}<small>{{ cart.offer_message }}</small>{% endif %}
+    <div class="summary-line"><span>Item total</span><span>{{ cart.subtotal|inr }}</span></div>
+    {% if cart.discount %}<div class="summary-line" style="color:var(--brand)"><span>Discount</span><span>−{{ cart.discount|inr }}</span></div>{% endif %}
+    {% if cart.mode == 'delivery' %}<div class="summary-line"><span>Delivery</span><span>{{ cart.delivery_fee|inr if cart.delivery_fee else 'FREE' }}</span></div>{% endif %}
+    <div class="summary-line"><span>GST</span><span>{{ cart.tax|inr }}</span></div>
+    <div class="summary-line total"><span>To pay</span><span>{{ cart.total|inr }}</span></div>
+    {% if cart['items'] %}
+    <form method="post" action="/checkout" style="margin-top:14px">
+      {% if cart.mode == 'delivery' %}<div class="field"><label>Deliver to</label><textarea name="delivery_address" rows="2" required>{{ me.default_address or '' }}</textarea></div>{% endif %}
+      {% if cart.mode == 'pickup' %}<div class="field"><label>Pickup slot (today)</label>
+        <select name="pickup_slot" required>{% for s in slots %}<option value="{{ s.start }}" {{ 'disabled' if not s.available }}>{{ s.label }} · {{ s.available }} left</option>{% else %}<option value="">No slots left today</option>{% endfor %}</select></div>{% endif %}
+      <label>Pay with</label>
+      <div class="stack" style="margin-bottom:12px">{% for m, l in [('upi','UPI (GPay, PhonePe, Paytm)'),('google_pay','Google Pay'),('apple_pay','Apple Pay'),('card','Credit / debit card'),('paypal','PayPal')] %}
+        <label class="row" style="font-weight:500;margin:0"><input type="radio" name="payment_method" value="{{ m }}" {{ 'checked' if loop.first }}> {{ l }}</label>{% endfor %}</div>
+      <button class="btn block lg">Pay {{ cart.total|inr }}</button>
+    </form>{% endif %}
+  </div>
+</div>
+{% endblock %}

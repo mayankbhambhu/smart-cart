@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card" style="max-width:640px;margin:auto">
+  <h1>📱 Scan & Go</h1>
+  <p>Shop the aisles with your phone: we route you through the store using your family list, you scan or tap items into your smart cart, pay on your phone, and scan your receipt at the exit gate. No queues, no cashier.</p>
+  <form method="post" action="/cart/setup" class="stack">
+    <div class="field"><label>Which store are you in?</label>
+      <select name="store_id">{% for s in stores %}<option value="{{ s.id }}" {{ 'selected' if s.id == cart.store_id }}>{{ s.name }} — {{ s.city }}</option>{% endfor %}</select></div>
+    <input type="hidden" name="mode" value="instore">
+    <button class="btn lg block">Start shopping in store</button>
+  </form>
+</div>
+{% endblock %}

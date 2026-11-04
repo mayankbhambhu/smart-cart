@@ -1,0 +1,15 @@
+{% extends "layout.html" %}{% block heading %}Login credential requests{% endblock %}
+{% block content %}
+<p class="muted">Raised by a store manager → approved by the store owner → reviewed here. Approve to create the account, or send back for changes.</p>
+<div class="tabs">{% for s in ['pending_admin','pending_owner','changes_requested','approved','rejected',''] %}<a href="?status={{ s }}" class="{{ 'active' if s == status }}">{{ (s or 'all')|nice }}</a>{% endfor %}</div>
+<div class="card table-wrap"><table>
+  <tr><th>Candidate</th><th>Store</th><th>Role & wage</th><th>Joining</th><th>Trail</th><th>Status / action</th></tr>
+  {% for r in rows %}<tr><td><b>{{ r.full_name }}</b><br><small>{{ r.email }}<br>{{ r.phone }}</small></td><td>{{ r.store_name }}<br><small>by {{ r.requested_by }}</small></td>
+    <td>{{ r.role|nice }}<br>{{ r.hourly_wage|inr }}/hr</td><td>{{ r.joining_date }}</td>
+    <td><small>{% if r.notes %}Manager: {{ r.notes }}<br>{% endif %}{% if r.owner_note %}Owner: {{ r.owner_note }}<br>{% endif %}{% if r.admin_note %}Admin: {{ r.admin_note }}{% endif %}</small></td>
+    <td>{% if r.status == 'pending_admin' %}<form method="post" action="/requests/{{ r.id }}" class="stack"><input name="note" placeholder="Note to store">
+        <div class="row"><button name="decision" value="approve" class="btn sm">Approve & issue</button><button name="decision" value="send_back" class="btn sm warn">Send back</button><button name="decision" value="reject" class="btn sm danger">Reject</button></div></form>
+      {% else %}<span class="badge {{ r.status }}">{{ r.status|nice }}</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">Nothing here</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

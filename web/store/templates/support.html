@@ -1,0 +1,14 @@
+{% extends "layout.html" %}{% block heading %}Support tickets{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="card table-wrap"><table><tr><th>Ticket</th><th>Category</th><th>Status</th><th>Admin response</th></tr>
+    {% for t in tickets %}<tr><td><b>#{{ t.id }} {{ t.subject }}</b><br><small>{{ t.description }}<br>{{ t.raised_by }} · {{ t.created_at|dt }}</small></td><td>{{ t.category|nice }}<br><span class="badge {{ t.priority }}">{{ t.priority }}</span></td>
+      <td><span class="badge {{ t.status }}">{{ t.status|nice }}</span></td><td>{{ t.admin_response or '—' }}</td></tr>{% else %}<tr><td colspan="4" class="empty">No tickets</td></tr>{% endfor %}</table></div>
+  <form method="post" action="/support" class="card"><h2>Raise an issue with FreshFlow</h2>
+    <div class="field"><label>Category</label><select name="category">{% for c in ['hardware','payments','inventory','account','gate','other'] %}<option value="{{ c }}">{{ c|nice }}</option>{% endfor %}</select></div>
+    <div class="field"><label>Priority</label><select name="priority"><option>normal</option><option>high</option><option>urgent</option><option>low</option></select></div>
+    <div class="field"><label>Subject</label><input name="subject" required></div>
+    <div class="field"><label>Describe the issue</label><textarea name="description" rows="4" required></textarea></div>
+    <button class="btn">Send to admin team</button></form>
+</div>
+{% endblock %}

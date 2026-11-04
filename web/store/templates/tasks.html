@@ -1,0 +1,35 @@
+{% extends "layout.html" %}{% block heading %}Work & tasks{% endblock %}
+{% block content %}
+<div class="card"><h2>My tasks</h2><div class="table-wrap"><table>
+  <tr><th>Task</th><th>From</th><th>Priority</th><th>Status</th><th>Update</th></tr>
+  {% for t in mine %}<tr><td><b>{{ t.title }}</b><br><small>{{ t.description }}</small>{% if t.manager_rating %}<br><span class="stars">{{ '★' * t.manager_rating }}</span> <small>{{ t.manager_feedback }}</small>{% endif %}</td>
+    <td>{{ t.assigned_by.name }}<br><small>{{ t.created_at|dt }}</small></td><td><span class="badge {{ t.priority }}">{{ t.priority }}</span></td>
+    <td><span class="badge {{ t.status }}">{{ t.status|nice }}</span></td>
+    <td>{% if t.status == 'assigned' %}<form method="post" action="/tasks/{{ t.id }}/progress"><input type="hidden" name="status" value="in_progress"><button class="btn sm sec">Start</button></form>{% endif %}
+      {% if t.status in ('assigned', 'in_progress') %}<form method="post" action="/tasks/{{ t.id }}/progress" class="row" style="margin-top:6px"><input type="hidden" name="status" value="done"><input name="completion_note" placeholder="What did you do?" required><button class="btn sm">Done</button></form>
+      {% elif t.completion_note %}<small>“{{ t.completion_note }}”</small>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No tasks assigned to you.</td></tr>{% endfor %}
+</table></div></div>
+{% if all is defined %}
+<div class="card"><h2>Assign work</h2>
+  <form method="post" action="/tasks" class="form-grid">
+    <div><label>Task</label><input name="title" required placeholder="e.g. Refill Aisle 4 chips"></div>
+    <div><label>Assign to</label><select name="assigned_to_id" required>{% for e in assignees %}<option value="{{ e.id }}">{{ e.name }} · {{ e.role|nice }}{{ ' · on clock' if e.on_clock }} · {{ e.open_tasks }} open</option>{% endfor %}</select></div>
+    <div><label>Priority</label><select name="priority"><option>normal</option><option>high</option><option>urgent</option><option>low</option></select></div>
+    <div><label>Due</label><input type="datetime-local" name="due_at"></div>
+    <div style="grid-column:1/-1"><label>Details</label><input name="description" placeholder="Optional instructions"></div>
+    <div><button class="btn">Assign & alert</button></div>
+  </form></div>
+<div class="card"><div class="row between"><h2>Team tasks</h2>
+  <div class="tabs" style="margin:0">{% for s in ['', 'assigned', 'in_progress', 'done', 'reviewed'] %}<a href="?status={{ s }}" class="{{ 'active' if s == status }}">{{ (s or 'all')|nice }}</a>{% endfor %}</div></div>
+  <div class="table-wrap"><table>
+  <tr><th>Task</th><th>Assignee</th><th>Status</th><th>Worker's report</th><th>Review</th></tr>
+  {% for t in all %}<tr><td><b>{{ t.title }}</b><br><small><span class="badge {{ t.priority }}">{{ t.priority }}</span> by {{ t.assigned_by.name }} · {{ t.created_at|dt }}</small></td>
+    <td>{{ t.assigned_to.name }}<br><small>{{ t.assigned_to.role|nice }}</small></td><td><span class="badge {{ t.status }}">{{ t.status|nice }}</span></td>
+    <td>{% if t.completion_note %}“{{ t.completion_note }}”<br><small>{{ t.completed_at|dt }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td>{% if t.status == 'done' %}<form method="post" action="/tasks/{{ t.id }}/review" class="row"><select name="rating">{% for n in [5,4,3,2,1] %}<option value="{{ n }}">{{ '★' * n }}</option>{% endfor %}</select><input name="feedback" placeholder="Feedback" style="width:120px"><button class="btn sm">Review</button></form>
+      {% elif t.manager_rating %}<span class="stars">{{ '★' * t.manager_rating }}</span><br><small>{{ t.manager_feedback }}</small>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No tasks</td></tr>{% endfor %}
+</table></div></div>
+{% endif %}
+{% endblock %}

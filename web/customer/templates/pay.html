@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="card" style="max-width:520px;margin:auto">
+  <h1>Complete payment</h1>
+  <p class="muted">Order {{ order.number }} · {{ order.store_name }} · {{ order.fulfilment|nice }}</p>
+  <div class="summary-line total"><span>Amount</span><span>{{ order.total|inr }}</span></div>
+  {% if payment.provider == 'mock' %}
+    <div class="flash ok" style="margin-top:14px">Sandbox mode: no real money moves. Set <code>PAYMENTS_MODE=live</code> with gateway keys to charge real {{ payment.method|nice }} payments.</div>
+    <form method="post" action="/pay/{{ order.id }}/confirm"><button class="btn block lg">Pay {{ order.total|inr }} with {{ payment.method|nice }}</button></form>
+  {% elif payment.provider == 'stripe' %}
+    <div id="pay-element" style="margin:16px 0"></div>
+    <button id="pay" class="btn block lg">Pay {{ order.total|inr }}</button>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+      const stripe = Stripe("{{ payment.publishable_key }}");
+      const elements = stripe.elements({clientSecret: "{{ payment.client_secret }}"});
+      elements.create("payment", {wallets: {applePay: "auto", googlePay: "auto"}}).mount("#pay-element");
+      document.getElementById("pay").onclick = async () => {
+        const {error} = await stripe.confirmPayment({elements, redirect: "if_required"});
+        if (error) return FF.toast("Payment failed", error.message);
+        const f = document.createElement("form"); f.method = "post"; f.action = "/pay/{{ order.id }}/confirm"; document.body.appendChild(f); f.submit();
+      };
+    </script>
+  {% elif payment.provider in ('paypal', 'razorpay') %}
+    <a class="btn block lg" style="margin-top:14px" href="{{ payment.approve_url }}">Continue to {{ 'UPI payment' if payment.provider == 'razorpay' else 'PayPal' }}</a>
+    <form method="post" action="/pay/{{ order.id }}/confirm" style="margin-top:8px"><button class="btn sec block">I've completed the payment</button></form>
+  {% endif %}
+</div>
+{% endblock %}

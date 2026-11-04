@@ -1,0 +1,12 @@
+{% extends "layout.html" %}{% block heading %}Store issues{% endblock %}
+{% block content %}
+<div class="tabs">{% for s in ['', 'open', 'in_progress', 'resolved'] %}<a href="?status={{ s }}" class="{{ 'active' if s == status }}">{{ (s or 'all')|nice }}</a>{% endfor %}</div>
+<div class="card table-wrap"><table>
+  <tr><th>Issue</th><th>Store</th><th>Category</th><th>Status</th><th>Respond</th></tr>
+  {% for t in rows %}<tr><td><b>#{{ t.id }} {{ t.subject }}</b><br><small>{{ t.description }}<br>{{ t.raised_by }} · {{ t.created_at|dt }}</small></td>
+    <td>{{ t.store_name }}</td><td>{{ t.category|nice }}<br><span class="badge {{ t.priority }}">{{ t.priority }}</span></td><td><span class="badge {{ t.status }}">{{ t.status|nice }}</span></td>
+    <td><form method="post" action="/tickets/{{ t.id }}" class="stack"><textarea name="admin_response" rows="2" placeholder="Response to the store">{{ t.admin_response or '' }}</textarea>
+      <div class="row"><select name="status">{% for s in ['open','in_progress','resolved'] %}<option value="{{ s }}" {{ 'selected' if s == t.status }}>{{ s|nice }}</option>{% endfor %}</select><button class="btn sm">Update</button></div></form></td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No tickets</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

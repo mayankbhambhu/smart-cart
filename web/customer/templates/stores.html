@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar"><h1>Stores & stock check</h1>
+  <button class="btn sec" onclick="navigator.geolocation.getCurrentPosition(p => location.href = `/stores?q={{ q }}&lat=${p.coords.latitude}&lng=${p.coords.longitude}`, () => FF.toast('Location unavailable',''))">📍 Use my location</button></div>
+<form class="card row" style="margin-bottom:16px">
+  <input name="q" value="{{ q }}" placeholder="Is it in stock before I leave home? e.g. Paneer" style="flex:1" required>
+  {% if lat %}<input type="hidden" name="lat" value="{{ lat }}"><input type="hidden" name="lng" value="{{ lng }}">{% endif %}
+  <button class="btn">Check stock</button></form>
+{% if stock is not none %}<div class="card"><h2>“{{ q }}” across stores</h2><div class="table-wrap"><table>
+  <tr><th>Store</th><th>Product</th><th>Stock</th><th>Location</th><th>Price</th>{% if lat %}<th>Distance</th>{% endif %}</tr>
+  {% for r in stock %}<tr><td>{{ r.store_name }}</td><td>{{ r.product }}</td>
+    <td>{% if r.in_stock %}<span class="badge ok">{{ r.quantity }} in stock</span>{% else %}<span class="badge danger">Out</span>{% endif %}</td>
+    <td><span class="loc">{{ r.location }}</span></td><td>{{ r.price|inr }}</td>{% if lat %}<td>{{ r.distance_km }} km</td>{% endif %}</tr>
+  {% else %}<tr><td colspan="6" class="empty">Not found in any store</td></tr>{% endfor %}</table></div></div>{% endif %}
+<div class="grid g3" style="margin-top:16px">{% for s in stores %}
+  <div class="card"><h3>{{ s.name }}</h3><div class="muted">{{ s.address }}, {{ s.city }} {{ s.pincode }}</div>
+    <div style="margin:8px 0">🕘 {{ '%02d'|format(s.opens_at) }}:00 – {{ '%02d'|format(s.closes_at) }}:00 {% if s.distance_km is not none %}· {{ s.distance_km }} km away{% endif %}</div>
+    <div class="row"><a class="btn sm sec" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination={{ s.latitude }},{{ s.longitude }}">Directions</a>
+      <form method="post" action="/cart/setup"><input type="hidden" name="store_id" value="{{ s.id }}"><input type="hidden" name="mode" value="pickup"><button class="btn sm">Order for pickup</button></form></div></div>
+{% endfor %}</div>
+{% endblock %}

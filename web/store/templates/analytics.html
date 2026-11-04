@@ -1,0 +1,65 @@
+{% extends "layout.html" %}{% block heading %}Business analysis{% endblock %}
+{% block head %}<script src="/static/vendor/chart.umd.min.js"></script>
+<style>.viz{--series-1:#2a78d6;--series-2:#eb6834;--grid:#e9ece6;--axis:#7a857e}</style>{% endblock %}
+{% block content %}{% set k = r.kpis %}
+<form class="row" style="margin-bottom:16px">
+  <div class="tabs" style="margin:0">{% for p in ['today', 'week', 'month', 'year'] %}<a href="?period={{ p }}" class="{{ 'active' if p == period }}">{{ p|nice }}</a>{% endfor %}</div>
+  <input type="hidden" name="period" value="custom"><input type="date" name="start" value="{{ start }}" required><input type="date" name="end" value="{{ end }}" required><button class="btn sm {{ '' if period == 'custom' else 'sec' }}">Custom range</button>
+  <span class="muted" style="margin-left:auto">{{ r.range.start[:10] }} → {{ r.range.end[:10] }} · {{ r.range.days }} day(s)</span>
+</form>
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Net sales</div><div class="v">{{ k.net_sales|inr }}</div><div class="d muted">gross {{ k.gross_sales|inr }} − discounts {{ k.discounts|inr }}</div></div>
+  <div class="card kpi"><div class="l">Gross profit</div><div class="v">{{ k.gross_profit|inr }}</div><div class="d muted">{{ k.margin_percent }}% margin · COGS {{ k.cost_of_goods|inr }}</div></div>
+  <div class="card kpi"><div class="l">Profit after staff cost</div><div class="v">{{ k.profit_after_labour|inr }}</div><div class="d muted">{{ r.labour.hours }} staff hrs · {{ r.labour.cost|inr }}</div></div>
+  <div class="card kpi"><div class="l">Orders</div><div class="v">{{ k.orders }}</div><div class="d muted">avg basket {{ k.avg_basket|inr }} · {{ k.customers }} customers</div></div>
+</div>
+<div class="grid g2 viz" style="margin-top:16px">
+  <div class="card"><h2>Net sales & gross profit</h2><canvas id="series" height="230" role="img" aria-label="Net sales and gross profit over time"></canvas></div>
+  <div class="card"><h2>Rush hours (orders by hour)</h2><canvas id="hours" height="230" role="img" aria-label="Orders by hour of day"></canvas>
+    <div class="row" style="margin-top:8px">{% for h in r.rush_hours %}<span class="badge warn">#{{ loop.index }} {{ h.label }} · {{ h.orders }} orders</span>{% endfor %}</div></div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card table-wrap"><h2>🏆 Best sellers</h2><table><tr><th>Product</th><th>Units</th><th>Revenue</th><th>Profit</th></tr>
+    {% for p in r.top_products %}<tr><td>{{ p.name }}</td><td>{{ p.units }}</td><td>{{ p.revenue|inr }}</td><td>{{ p.profit|inr }}</td></tr>{% else %}<tr><td colspan="4" class="empty">No sales</td></tr>{% endfor %}</table></div>
+  <div class="card table-wrap"><h2>🏷️ Offers shoppers liked most</h2><table><tr><th>Offer</th><th>Uses</th><th>Discount given</th><th>Revenue driven</th></tr>
+    {% for o in r.offers %}<tr><td><b>{{ o.code }}</b><br><small>{{ o.title }}</small></td><td>{{ o.uses }}</td><td>{{ o.discount_given|inr }}</td><td>{{ o.revenue|inr }}</td></tr>{% else %}<tr><td colspan="4" class="empty">No offer redemptions</td></tr>{% endfor %}</table></div>
+</div>
+<div class="grid g2 viz" style="margin-top:16px">
+  <div class="card"><h2>Sales by category</h2><canvas id="cats" height="260" role="img" aria-label="Revenue by category"></canvas></div>
+  <div class="card"><h2>Busy times (weekday × hour)</h2><div class="table-wrap"><table class="heat">
+    <tr><td></td>{% for h in range(6, 24) %}<td style="color:var(--muted)">{{ h }}</td>{% endfor %}</tr>
+    {% set mx = r.heatmap|map('max')|max or 1 %}
+    {% for row in r.heatmap %}<tr><td style="color:var(--ink);text-align:left;padding-right:6px">{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][loop.index0] }}</td>
+      {% for h in range(6, 24) %}{% set v = row[h] %}<td title="{{ v }} orders" style="background:rgba(42,120,214,{{ (0.06 + 0.94 * v / mx)|round(2) }});color:{{ '#fff' if v / mx > 0.5 else 'transparent' }}">{{ v }}</td>{% endfor %}</tr>{% endfor %}
+  </table></div><small class="muted">Darker = more orders. Use it to plan shifts for the rush.</small>
+    <h3 style="margin-top:14px">Fulfilment mix</h3><div class="row">{% for kname, v in r.fulfilment_mix.items() %}<span class="badge">{{ kname|nice }}: {{ v }} ({{ (100 * v / (k.orders or 1))|round|int }}%)</span>{% endfor %}</div>
+  </div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>⚠️ Low stock now</h2>{% for l in r.low_stock %}<div>{{ l.product }} — {{ l.quantity }} left <span class="loc">A{{ l.aisle }}-R{{ l.row }}</span></div>{% else %}<p class="muted">None</p>{% endfor %}</div>
+  <div class="card"><h2>💤 Not selling (dead stock)</h2><p class="muted">Stocked but zero sales in this range: consider an offer or delisting.</p>{{ r.dead_stock|join(', ') or 'None, everything sold.' }}</div>
+</div>
+<details class="card" style="margin-top:16px"><summary>Data table</summary><div class="table-wrap"><table><tr><th>Period</th><th>Orders</th><th>Net sales</th><th>Gross profit</th></tr>
+  {% for s in r.series %}<tr><td>{{ s.period }}</td><td>{{ s.orders|int }}</td><td>{{ s.sales|inr }}</td><td>{{ s.profit|inr }}</td></tr>{% endfor %}</table></div></details>
+{% endblock %}
+{% block page_scripts %}<script>
+const R = {{ r|tojson }};
+const css = getComputedStyle(document.querySelector('.viz'));
+const C1 = css.getPropertyValue('--series-1').trim(), C2 = css.getPropertyValue('--series-2').trim();
+Chart.defaults.font.family = 'Inter, system-ui, sans-serif'; Chart.defaults.color = '#7a857e';
+const inr = v => '₹' + Math.round(v).toLocaleString('en-IN');
+const grid = {color: '#e9ece6'}, noGrid = {display: false};
+const tip = {callbacks: {label: c => `${c.dataset.label}: ${c.dataset.money === false ? c.parsed.y ?? c.parsed.x : inr(c.parsed.y ?? c.parsed.x)}`}};
+new Chart(document.getElementById('series'), {type: 'line',
+  data: {labels: R.series.map(s => s.period), datasets: [
+    {label: 'Net sales', data: R.series.map(s => s.sales), borderColor: C1, backgroundColor: C1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0},
+    {label: 'Gross profit', data: R.series.map(s => s.profit), borderColor: C2, backgroundColor: C2, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0}]},
+  options: {interaction: {mode: 'index', intersect: false}, plugins: {tooltip: tip, legend: {position: 'top', align: 'start', labels: {boxWidth: 10, boxHeight: 10}}},
+    scales: {x: {grid: noGrid, ticks: {maxTicksLimit: 8}}, y: {grid, ticks: {callback: inr}}}}});
+new Chart(document.getElementById('hours'), {type: 'bar',
+  data: {labels: [...Array(24).keys()].map(h => String(h).padStart(2, '0')), datasets: [{label: 'Orders', money: false, data: R.orders_by_hour, backgroundColor: C1, borderRadius: {topLeft: 4, topRight: 4}, borderSkipped: 'bottom', barPercentage: .8}]},
+  options: {plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => `${i[0].label}:00–${i[0].label}:59`}}}, scales: {x: {grid: noGrid}, y: {grid, beginAtZero: true}}}});
+new Chart(document.getElementById('cats'), {type: 'bar',
+  data: {labels: R.category_sales.map(c => c.category), datasets: [{label: 'Revenue', data: R.category_sales.map(c => c.revenue), backgroundColor: C1, borderRadius: {topRight: 4, bottomRight: 4}, borderSkipped: 'left', barPercentage: .75}]},
+  options: {indexAxis: 'y', plugins: {legend: {display: false}, tooltip: tip}, scales: {x: {grid, ticks: {callback: inr}}, y: {grid: noGrid}}}});
+</script>{% endblock %}

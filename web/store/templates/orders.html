@@ -1,0 +1,15 @@
+{% extends "layout.html" %}{% block heading %}Orders{% endblock %}
+{% block content %}
+<div class="tabs">{% for f, l in [('', 'All'), ('pickup', 'Pickup'), ('delivery', 'Delivery'), ('instore', 'Scan & Go')] %}<a href="?fulfilment={{ f }}&status={{ status }}" class="{{ 'active' if f == fulfilment }}">{{ l }}</a>{% endfor %}
+  <span style="width:12px"></span>{% for s in ['', 'preparing', 'ready', 'out_for_delivery', 'paid', 'completed'] %}<a href="?fulfilment={{ fulfilment }}&status={{ s }}" class="{{ 'active' if s == status }}">{{ (s or 'any status')|nice }}</a>{% endfor %}</div>
+<div class="card table-wrap"><table>
+  <tr><th>Order</th><th>Customer</th><th>Type</th><th>Pick list</th><th>Total</th><th>Status</th><th>Action</th></tr>
+  {% for o in rows[:80] %}<tr><td><b>{{ o.number }}</b><br><small>{{ o.paid_at|dt }}</small></td><td>{{ o.customer }}</td>
+    <td>{{ o.fulfilment|nice }}{% if o.pickup_slot %}<br><small>slot {{ o.pickup_slot|dt('%I:%M %p') }}</small>{% endif %}</td>
+    <td><small>{% for i in o['items'] %}{{ i.quantity }}× {{ i.name }} <span class="muted">{{ i.location }}</span><br>{% endfor %}</small></td>
+    <td>{{ o.total|inr }}</td><td><span class="badge {{ o.status }}">{{ o.status|nice }}</span>{% if o.exit_verified_at %}<br><small>exit ✓</small>{% endif %}</td>
+    <td>{% set nxt = {'preparing': ('ready' if o.fulfilment == 'pickup' else 'out_for_delivery'), 'out_for_delivery': 'completed', 'ready': 'completed'}.get(o.status) %}
+      {% if nxt %}<form method="post" action="/orders/{{ o.id }}/status"><input type="hidden" name="status" value="{{ nxt }}"><button class="btn sm">→ {{ nxt|nice }}</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="empty">No orders</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

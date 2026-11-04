@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar">
+  <div><h1>📱 Scan & Go · {{ store.name }}</h1><span class="muted">Items you add come off the shelf stock instantly. Pay on your phone and walk out.</span></div>
+  <form method="get" class="row"><label style="margin:0">Route for</label>
+    <select name="list_id" onchange="this.form.submit()">{% for l in lists %}<option value="{{ l.id }}" {{ 'selected' if l.id == list_id }}>{{ l.name }}</option>{% endfor %}</select></form>
+</div>
+<div class="split">
+  <div>
+    {% if route %}{% set m = store_map(route) %}
+    <div class="card">
+      <div class="row between"><h2>Your route</h2>
+        <span class="muted">{{ route.steps|length }} stops · {{ route.total_distance_m }} m (saves {{ (route.unoptimised_distance_m - route.total_distance_m)|round(1) }} m) · ~{{ route.estimated_minutes }} min</span></div>
+      <svg class="storemap" viewBox="0 0 {{ m.w }} {{ m.h }}" role="img" aria-label="Store map with route">
+        {% for a in m.aisles %}<rect x="{{ a.x }}" y="{{ a.y }}" width="36" height="{{ a.h }}" rx="5" fill="#d8dfd5"/>
+          <text x="{{ a.x + 18 }}" y="{{ a.y + a.h / 2 }}" text-anchor="middle" font-size="11" font-weight="700" fill="#6b766f" transform="rotate(-90 {{ a.x + 18 }} {{ a.y + a.h / 2 }})">AISLE {{ a.n }}</text>{% endfor %}
+        <polyline points="{{ m.path }}" fill="none" stroke="var(--brand)" stroke-width="3" stroke-dasharray="6 4" stroke-linejoin="round"/>
+        {% for s in m.stops %}<circle cx="{{ s.x }}" cy="{{ s.y }}" r="10" fill="var(--brand)"/><text x="{{ s.x }}" y="{{ s.y + 4 }}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">{{ s.n }}</text>{% endfor %}
+        <text x="{{ m.entrance[0] }}" y="{{ m.h - 6 }}" text-anchor="middle" font-size="11" font-weight="700">ENTRANCE</text>
+        <text x="{{ m.exit[0] }}" y="{{ m.h - 6 }}" text-anchor="middle" font-size="11" font-weight="700">EXIT GATE</text>
+      </svg>
+      <ol class="steps" style="margin-top:12px">{% for s in route.steps %}
+        <li><span class="n">{{ s.step }}</span><div style="flex:1"><b>Aisle {{ s.aisle }}, Row {{ s.row }}</b> <small>· {{ s.distance_from_previous_m }} m</small>
+          {% for it in s['items'] %}<div class="row between" style="margin-top:4px"><span>{{ it.label }} · {{ it.price|inr }}</span>
+            <form method="post" action="/instore/pick/{{ list_id }}/{{ it.list_item_id }}"><input type="hidden" name="product_id" value="{{ it.product_id }}"><input type="hidden" name="quantity" value="{{ it.quantity }}"><button class="btn sm">Picked ✓</button></form></div>{% endfor %}
+        </div></li>{% else %}<li class="muted">Everything on the list is picked. Head to checkout →</li>{% endfor %}
+      </ol>
+      {% if route.unavailable %}<p class="muted">Not available here: {{ route.unavailable|join(', ') }}</p>{% endif %}
+    </div>{% endif %}
+    {% if shopping_list %}<div class="card"><h3>Family list live <span class="live-dot"></span></h3><div id="list-feed" class="feed muted">Changes made by your family at home appear here instantly.</div></div>{% endif %}
+  </div>
+  <div class="card" style="position:sticky;top:80px">
+    <h2>Smart cart</h2>
+    <form method="post" action="/cart/scan" class="row" style="margin-bottom:12px">
+      <input name="code" placeholder="Scan barcode or type item" style="flex:1" autofocus><button class="btn">Add</button></form>
+    {% for i in cart['items'] %}<div class="summary-line"><span>{{ i.quantity }}× {{ i.name }}</span><span>{{ i.line_total|inr }}</span></div>{% else %}<p class="muted">Nothing in your cart yet.</p>{% endfor %}
+    {% if cart.discount %}<div class="summary-line" style="color:var(--brand)"><span>Discount</span><span>−{{ cart.discount|inr }}</span></div>{% endif %}
+    <div class="summary-line"><span>GST</span><span>{{ cart.tax|inr }}</span></div>
+    <div class="summary-line total"><span>Total</span><span>{{ cart.total|inr }}</span></div>
+    {% if cart['items'] %}<form method="post" action="/checkout" style="margin-top:12px">
+      <select name="payment_method" style="width:100%;margin-bottom:8px">{% for m, l in [('upi','UPI'),('apple_pay','Apple Pay'),('google_pay','Google Pay'),('card','Card'),('paypal','PayPal')] %}<option value="{{ m }}">{{ l }}</option>{% endfor %}</select>
+      <button class="btn block lg">Checkout · {{ cart.total|inr }}</button></form>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+window.onLive = (e) => {
+  if (e.channel.startsWith('list:')) {
+    const f = document.getElementById('list-feed'); if (!f) return;
+    const d = document.createElement('div'); d.textContent = `${e.data.actor} · ${e.event.replace('_',' ')}: ${e.data.item || ''}`;
+    f.prepend(d); FF.toast('Family list updated', d.textContent);
+    if (e.event === 'item_added') setTimeout(() => location.reload(), 1500);  // re-plan route
+  }
+};
+</script>{% endblock %}

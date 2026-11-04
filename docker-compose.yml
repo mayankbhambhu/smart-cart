@@ -1,0 +1,29 @@
+# docker compose up --build   then   docker compose exec api python -m app.seed
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_USER: freshflow, POSTGRES_PASSWORD: freshflow, POSTGRES_DB: freshflow }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://freshflow:freshflow@db:5432/freshflow
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-dev-secret-change-me}
+      PAYMENTS_MODE: ${PAYMENTS_MODE:-mock}
+    depends_on: [db]
+    ports: ["8000:8000"]
+  customer:
+    build: ./web
+    environment: { APP: customer, PORT: 8001, API_URL: http://api:8000, PUBLIC_API_URL: http://localhost:8000 }
+    ports: ["8001:8001"]
+  store:
+    build: ./web
+    environment: { APP: store, PORT: 8002, API_URL: http://api:8000, PUBLIC_API_URL: http://localhost:8000 }
+    ports: ["8002:8002"]
+  admin:
+    build: ./web
+    environment: { APP: admin, PORT: 8003, API_URL: http://api:8000, PUBLIC_API_URL: http://localhost:8000 }
+    ports: ["8003:8003"]
+volumes:
+  pgdata:

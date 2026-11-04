@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Profile</h1>
+<div class="grid g2">
+  <form method="post" action="/profile" class="card">
+    <h2>Personal details</h2>
+    <div class="field"><label>Full name</label><input name="full_name" value="{{ me.full_name }}"></div>
+    <div class="field"><label>Email</label><input value="{{ me.email or '' }}" disabled></div>
+    <div class="field"><label>Phone</label><input name="phone" value="{{ me.phone or '' }}"></div>
+    <div class="field"><label>Default delivery address</label><textarea name="default_address" rows="2">{{ me.default_address or '' }}</textarea></div>
+    <div class="field"><label>Home store</label><select name="preferred_store_id"><option value="">—</option>{% for s in stores %}<option value="{{ s.id }}" {{ 'selected' if s.id == me.preferred_store_id }}>{{ s.name }}</option>{% endfor %}</select></div>
+    <label>Dietary preferences</label>
+    <div class="row" style="margin-bottom:12px">{% for d in dietary %}<label class="chip {{ 'active' if d in me.dietary_preferences }}" style="margin:0"><input type="checkbox" name="diet" value="{{ d }}" {{ 'checked' if d in me.dietary_preferences }} hidden onchange="this.parentNode.classList.toggle('active')">{{ d|nice }}</label>{% endfor %}</div>
+    <button class="btn">Save profile</button>
+  </form>
+  <div>
+    <div class="card"><h2>Payment methods</h2>
+      {% for m in methods %}<div class="row between" style="padding:6px 0"><span>{{ {'card':'💳','upi':'⚡','paypal':'🅿️','apple_pay':'','google_pay':'G'}[m.kind] }} {{ m.label }} {% if m.is_default %}<span class="badge ok">default</span>{% endif %}</span>
+        <form method="post" action="/profile/methods/{{ m.id }}/delete"><button class="btn ghost sm">Remove</button></form></div>{% else %}<p class="muted">No saved methods.</p>{% endfor %}
+      <form method="post" action="/profile/methods" class="row" style="margin-top:10px">
+        <select name="kind"><option value="upi">UPI ID</option><option value="card">Card</option><option value="paypal">PayPal</option><option value="apple_pay">Apple Pay</option><option value="google_pay">Google Pay</option></select>
+        <input name="label" placeholder="name@okbank / Visa •••• 4242" required style="flex:1"><button class="btn sec">Add</button></form>
+      <small>Cards are tokenised by Stripe. We never store card numbers.</small>
+    </div>
+    <div class="card"><h2>Notifications</h2>{% for n in notifications %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>{{ n.title }}</b><br><small>{{ n.body }} · {{ n.created_at|dt }}</small></div>{% else %}<p class="muted">Nothing yet.</p>{% endfor %}</div>
+  </div>
+</div>
+{% endblock %}

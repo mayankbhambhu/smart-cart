@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar">
+  <div><h1>{{ sl.name }}</h1><span class="muted"><span class="live-dot"></span>Syncs live with {{ sl.members|map(attribute='name')|join(', ') }} · invite code <b>{{ sl.invite_code }}</b></span></div>
+  <div class="row">
+    <a class="btn" href="/instore?list_id={{ sl.id }}">🧭 Shop in store with route</a>
+    <form method="post" action="/cart/from-list/{{ sl.id }}"><button class="btn sec">🛒 Order for delivery</button></form>
+  </div>
+</div>
+<div class="split">
+  <div class="card">
+    <form method="post" action="/lists/{{ sl.id }}/items" class="row" style="margin-bottom:12px">
+      <input name="name" placeholder="Add an item, e.g. Milk" required style="flex:1"><input name="quantity" type="number" value="1" min="1" style="width:70px"><button class="btn">Add</button></form>
+    <div id="items" hx-get="/lists/{{ sl.id }}/items" hx-trigger="refresh">{% include "_list_items.html" %}</div>
+  </div>
+  <div class="card"><h3>Activity</h3><div id="feed" class="feed muted">Waiting for changes…</div>
+    <form method="post" action="/lists/{{ sl.id }}/delete" style="margin-top:14px" onsubmit="return confirm('Delete or leave this list?')"><button class="btn sm danger">{{ 'Delete list' if sl.owner_id == user.id else 'Leave list' }}</button></form></div>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+window.onLive = (e) => {
+  if (!e.channel.startsWith('list:')) return;
+  htmx.trigger('#items', 'refresh');
+  const d = document.createElement('div'); d.textContent = `${e.data.actor} · ${e.event.replace('_', ' ')}${e.data.item ? ': ' + e.data.item : ''}`;
+  const f = document.getElementById('feed'); if (f.textContent.startsWith('Waiting')) f.textContent = ''; f.prepend(d);
+};
+</script>{% endblock %}

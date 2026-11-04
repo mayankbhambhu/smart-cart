@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<header class="topnav"><div class="in">
+  <a href="/" class="logo" style="padding:0"><i>F</i><span>FreshFlow</span></a>
+  <nav class="links">
+    {% for href, label in [("/", "Shop"), ("/instore", "Scan & Go"), ("/lists", "Family lists"), ("/stores", "Stores & stock"), ("/orders", "Orders"), ("/profile", "Profile")] %}
+    <a href="{{ href }}" class="{{ 'active' if (path == href or (href != '/' and path.startswith(href))) }}">{{ label }}</a>{% endfor %}
+  </nav>
+  <div class="row" style="margin-left:auto">
+    <span class="muted" style="font-size:.8rem"><span class="live-dot"></span>live</span>
+    <a class="btn" href="/cart">🛒 Cart{% if cart is defined and cart.item_count %} · {{ cart.item_count }} · {{ cart.total|inr }}{% endif %}</a>
+    <a class="btn ghost" href="/logout">Log out</a>
+  </div>
+</div></header>
+<main class="container">{% include "_flash.html" %}{% block content %}{% endblock %}</main>
+{% endblock %}

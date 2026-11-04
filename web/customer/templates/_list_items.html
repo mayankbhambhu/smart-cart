@@ -1,0 +1,9 @@
+<table>{% for i in sl['items'] %}
+<tr style="{{ 'opacity:.55' if i.checked }}">
+  <td style="width:34px"><form method="post" action="/lists/{{ sl.id }}/items/{{ i.id }}/toggle"><input type="hidden" name="checked" value="{{ 0 if i.checked else 1 }}"><button class="btn sm {{ '' if i.checked else 'sec' }}">{{ '✓' if i.checked else '○' }}</button></form></td>
+  <td><b style="{{ 'text-decoration:line-through' if i.checked }}">{{ i.name }}</b> × {{ i.quantity }}<br><small>added by {{ i.added_by }}</small></td>
+  <td>{% if i.location %}<span class="loc">📍 {{ i.location }}</span>{% if not i.in_stock %} <span class="badge danger">low/out</span>{% endif %}{% else %}<small class="muted">not in catalogue</small>{% endif %}</td>
+  <td style="text-align:right">{{ (i.price * i.quantity)|inr if i.price else '' }}</td>
+  <td><form method="post" action="/lists/{{ sl.id }}/items/{{ i.id }}/delete"><button class="btn ghost sm">✕</button></form></td>
+</tr>{% else %}<tr><td class="empty">List is empty</td></tr>{% endfor %}</table>
+{% if sl.estimated_total is defined %}<div class="summary-line total"><span>Estimated total (unchecked)</span><span>{{ sl.estimated_total|inr }}</span></div>{% endif %}

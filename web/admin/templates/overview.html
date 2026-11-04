@@ -1,0 +1,28 @@
+{% extends "layout.html" %}{% block heading %}Platform overview{% endblock %}
+{% block head %}<script src="/static/vendor/chart.umd.min.js"></script>{% endblock %}
+{% block content %}{% set k = ov.kpis %}{% set c = ov.counts %}
+<div class="tabs">{% for p in ['today','week','month','year'] %}<a href="?period={{ p }}" class="{{ 'active' if p == period }}">{{ p|nice }}</a>{% endfor %}</div>
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Net sales, all stores</div><div class="v">{{ k.net_sales|inr }}</div><div class="d muted">{{ k.orders }} orders</div></div>
+  <div class="card kpi"><div class="l">Gross profit</div><div class="v">{{ k.gross_profit|inr }}</div><div class="d muted">{{ k.margin_percent }}% margin</div></div>
+  <div class="card kpi"><div class="l">Stores · employees</div><div class="v">{{ c.stores }} · {{ c.employees }}</div><div class="d muted">{{ c.customers }} customers</div></div>
+  <div class="card kpi"><div class="l">Needs attention</div><div class="v">{{ c.pending_requests }} · {{ c.open_tickets }}</div><div class="d muted">credential requests · open tickets</div></div>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <div class="card"><h2>Net sales by store</h2><canvas id="stores" height="220" role="img" aria-label="Net sales by store"></canvas>
+    <details style="margin-top:8px"><summary>Table</summary><table>{% for s in ov.store_sales %}<tr><td>{{ s.name }}</td><td>{{ s.net_sales|inr }}</td></tr>{% endfor %}</table></details></div>
+  <div>
+    <div class="card"><div class="row between"><h2>Waiting for you</h2><a href="/requests">All →</a></div>
+      {% for r in pending %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>{{ r.full_name }}</b> · {{ r.role|nice }} · {{ r.store_name }}<br><small>Owner: {{ r.owner_note or 'approved' }}</small></div>{% else %}<p class="muted">No pending requests.</p>{% endfor %}</div>
+    <div class="card"><div class="row between"><h2>Open store issues</h2><a href="/tickets">All →</a></div>
+      {% for t in tickets %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="badge {{ t.priority }}">{{ t.priority }}</span> <b>{{ t.subject }}</b><br><small>{{ t.store_name }} · {{ t.category|nice }}</small></div>{% else %}<p class="muted">All clear.</p>{% endfor %}</div>
+  </div>
+</div>
+{% endblock %}
+{% block page_scripts %}<script>
+const S = {{ ov.store_sales|tojson }};
+new Chart(document.getElementById('stores'), {type: 'bar', data: {labels: S.map(s => s.name.replace('FreshFlow ', '')),
+  datasets: [{label: 'Net sales', data: S.map(s => s.net_sales), backgroundColor: '#2a78d6', borderRadius: {topRight: 4, bottomRight: 4}, borderSkipped: 'left', barPercentage: .7}]},
+  options: {indexAxis: 'y', plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => '₹' + Math.round(c.parsed.x).toLocaleString('en-IN')}}},
+    scales: {x: {grid: {color: '#e9ece6'}, ticks: {callback: v => '₹' + (v / 1000) + 'k'}}, y: {grid: {display: false}}}}});
+</script>{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}{% block heading %}Attendance & hours{% endblock %}
+{% block content %}
+<form class="row" style="margin-bottom:14px">
+  <select name="period">{% for p in ['today', 'week', 'month', 'year', 'custom'] %}<option value="{{ p }}" {{ 'selected' if p == period }}>{{ p|nice }}</option>{% endfor %}</select>
+  <input type="date" name="start" value="{{ start }}"><input type="date" name="end" value="{{ end }}"><button class="btn">Apply</button></form>
+<div class="card table-wrap"><h2>Summary</h2><table>
+  <tr><th>Employee</th><th>Role</th><th>Days present</th><th>Hours worked</th><th>Wage / hr</th><th>Earned</th><th></th></tr>
+  {% for s in data.summary if s.role != 'owner' %}<tr><td><b>{{ s.name }}</b></td><td>{{ s.role|nice }}</td><td>{{ s.days_present }}</td><td>{{ s.hours }}</td><td>{{ s.wage|inr }}</td><td>{{ s.earned|inr }}</td><td><a href="?period={{ period }}&start={{ start }}&end={{ end }}&user_id={{ s.user_id }}">log →</a></td></tr>{% endfor %}
+</table></div>
+<div class="card table-wrap"><h2>Clock-in log {% if user_id %}<a class="btn ghost sm" href="?period={{ period }}">show everyone</a>{% endif %}</h2><table>
+  <tr><th>Employee</th><th>Date</th><th>Came in</th><th>Left</th><th>Hours</th></tr>
+  {% for r in data.log[:200] %}<tr><td>{{ r.name }}</td><td>{{ r.clock_in|dt('%a %d %b') }}</td><td>{{ r.clock_in|dt('%I:%M %p') }}</td><td>{{ r.clock_out|dt('%I:%M %p') if r.clock_out else '🟢 on shift' }}</td><td>{{ r.hours or '—' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No records in this range</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

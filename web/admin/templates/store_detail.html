@@ -1,0 +1,16 @@
+{% extends "layout.html" %}{% block heading %}{{ d.store.name }}{% endblock %}
+{% block content %}{% set k = d.month_kpis %}
+<p class="muted">{{ d.store.code }} · {{ d.store.address }}, {{ d.store.city }} · {{ d.store.phone }} · layout {{ d.store.aisles }} aisles × {{ d.store.rows }} rows</p>
+<div class="grid g4">
+  <div class="card kpi"><div class="l">Net sales (this month)</div><div class="v">{{ k.net_sales|inr }}</div></div>
+  <div class="card kpi"><div class="l">Gross profit</div><div class="v">{{ k.gross_profit|inr }}</div></div>
+  <div class="card kpi"><div class="l">Orders</div><div class="v">{{ k.orders }}</div></div>
+  <div class="card kpi"><div class="l">Owner</div><div class="v" style="font-size:1.05rem">{{ d.owner.name if d.owner else '—' }}</div><div class="d muted">{{ d.owner.phone if d.owner }}<br>{{ d.owner.email if d.owner }}</div></div>
+</div>
+<div class="card table-wrap"><h2>Employees</h2><table>
+  <tr><th>Name</th><th>Role</th><th>Code</th><th>Phone</th><th>Joined</th><th>Wage / hr</th><th>Status</th></tr>
+  {% for e in d.employees %}<tr><td>{{ e.name }}</td><td>{{ e.role|nice }}</td><td>{{ e.employee_code }}</td><td>{{ e.phone }}</td><td>{{ e.joined_on }}</td><td>{{ e.hourly_wage|inr }}</td>
+    <td><span class="badge {{ 'ok' if e.is_active else 'danger' }}">{{ 'active' if e.is_active else 'removed' }}</span></td></tr>{% endfor %}
+</table><a href="/employees?store_id={{ d.store.id }}">Manage employees →</a></div>
+<div class="card"><h2>Recent tickets</h2>{% for t in d.tickets %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="badge {{ t.status }}">{{ t.status|nice }}</span> {{ t.subject }} <small class="muted">{{ t.created_at|dt }}</small></div>{% else %}<p class="muted">None</p>{% endfor %}</div>
+{% endblock %}

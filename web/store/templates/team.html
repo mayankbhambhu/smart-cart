@@ -1,0 +1,39 @@
+{% extends "layout.html" %}{% block heading %}Team & onboarding{% endblock %}
+{% block content %}
+<div class="card table-wrap"><h2>Employees</h2><table>
+  <tr><th>Name</th><th>Role</th><th>Code</th><th>Contact</th><th>Joined</th>{% if user.role in ('owner','store_manager') %}<th>Wage / hr</th>{% endif %}<th>Now</th><th>Open tasks</th></tr>
+  {% for e in employees %}<tr style="{{ 'opacity:.5' if not e.is_active }}"><td><b>{{ e.name }}</b>{% if not e.is_active %} <span class="badge danger">removed</span>{% endif %}</td><td>{{ e.role|nice }}</td><td>{{ e.employee_code or '—' }}</td>
+    <td><small>{{ e.phone }}<br>{{ e.email }}</small></td><td>{{ e.joined_on or '—' }}</td>{% if user.role in ('owner','store_manager') %}<td>{{ e.hourly_wage|inr if e.hourly_wage else '—' }}</td>{% endif %}
+    <td>{{ '🟢 on clock' if e.on_clock else '—' }}</td><td>{{ e.open_tasks }}</td></tr>{% endfor %}
+</table></div>
+{% if user.role in ('owner', 'store_manager') %}
+<div class="card" id="requests"><h2>Login credential requests</h2>
+  <p class="muted">Flow: <b>Store manager raises</b> → <b>Owner reviews</b> → <b>FreshFlow admin issues credentials</b>. Anyone reviewing can send it back for changes.</p>
+  <div class="table-wrap"><table><tr><th>Candidate</th><th>Role & wage</th><th>Joining</th><th>Status</th><th>Notes</th><th>Action</th></tr>
+  {% for q in requests %}<tr><td><b>{{ q.full_name }}</b><br><small>{{ q.email }} · {{ q.phone }}</small></td><td>{{ q.role|nice }}<br>{{ q.hourly_wage|inr }}/hr</td><td>{{ q.joining_date }}</td>
+    <td><span class="badge {{ q.status }}">{{ q.status|nice }}</span>{% if q.sent_back_by %}<br><small>by {{ q.sent_back_by }}</small>{% endif %}</td>
+    <td><small>{% if q.notes %}Manager: {{ q.notes }}<br>{% endif %}{% if q.owner_note %}Owner: {{ q.owner_note }}<br>{% endif %}{% if q.admin_note %}Admin: {{ q.admin_note }}{% endif %}</small></td>
+    <td>{% if user.role == 'owner' and q.status == 'pending_owner' %}
+        <form method="post" action="/team/requests/{{ q.id }}/review" class="stack"><input name="note" placeholder="Note (required to send back)">
+          <div class="row"><button name="decision" value="approve" class="btn sm">Approve → admin</button><button name="decision" value="send_back" class="btn sm warn">Send back</button><button name="decision" value="reject" class="btn sm danger">Reject</button></div></form>
+      {% elif user.role == 'store_manager' and q.status in ('changes_requested', 'pending_owner') %}
+        <details><summary>Edit & resubmit</summary><form method="post" action="/team/requests/{{ q.id }}" class="stack" style="margin-top:8px">
+          <input name="full_name" value="{{ q.full_name }}"><input name="email" value="{{ q.email }}"><input name="phone" value="{{ q.phone }}">
+          <select name="role">{% for r in ['worker','floor_manager','store_manager'] %}<option value="{{ r }}" {{ 'selected' if r == q.role }}>{{ r|nice }}</option>{% endfor %}</select>
+          <input name="hourly_wage" type="number" step="0.5" value="{{ q.hourly_wage }}"><input name="joining_date" type="date" value="{{ q.joining_date }}"><input name="notes" value="{{ q.notes }}">
+          <button class="btn sm">Resubmit to owner</button></form></details>
+      {% elif q.status == 'approved' %}<small>✓ account created</small>{% else %}<small class="muted">waiting</small>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No requests</td></tr>{% endfor %}</table></div>
+</div>
+{% if user.role == 'store_manager' %}
+<div class="card"><h2>Request credentials for a new employee</h2>
+  <form method="post" action="/team/requests" class="form-grid">
+    <div><label>Full name</label><input name="full_name" required></div><div><label>Email (login)</label><input name="email" type="email" required></div>
+    <div><label>Phone</label><input name="phone" required></div>
+    <div><label>Role</label><select name="role"><option value="worker">Worker</option><option value="floor_manager">Floor manager</option></select></div>
+    <div><label>Hourly wage (₹)</label><input name="hourly_wage" type="number" step="0.5" required></div><div><label>Joining date</label><input name="joining_date" type="date" required></div>
+    <div style="grid-column:1/-1"><label>Notes for owner/admin</label><input name="notes"></div>
+    <div><button class="btn">Send for owner review</button></div>
+  </form></div>{% endif %}
+{% endif %}
+{% endblock %}

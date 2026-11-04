@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo"><i>F</i><span>FreshFlow<small>Admin Operations</small></span></div>
+    <nav class="nav">{% for href, label, icon in nav %}<a href="{{ href }}" class="{{ 'active' if path == href or (href != '/' and path.startswith(href)) }}">{{ icon }} {{ label }}</a>{% endfor %}
+      <div class="sep">Account</div><a href="/logout">↩ Log out</a></nav>
+  </aside>
+  <main class="main">
+    <div class="topbar"><h1>{% block heading %}{% endblock %}</h1><span class="muted" style="font-size:.85rem"><span class="live-dot"></span>{{ user.full_name }}</span></div>
+    {% include "_flash.html" %}
+    {% if issued %}<div class="card" style="border:2px solid var(--brand);margin-bottom:16px"><h2>🔐 Credentials for {{ issued.name }}</h2>
+      <p>Share these securely with the employee (they are shown only once; the employee must set a new password at first login).</p>
+      <div class="grid g3"><div><label>Login</label><code>{{ issued.login }}</code></div><div><label>Temporary password</label><code>{{ issued.temporary_password }}</code></div>
+        {% if issued.employee_code %}<div><label>Employee code</label><code>{{ issued.employee_code }}</code></div>{% endif %}</div></div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script>
+window.onLive = (e) => { if (e.event === 'credential_request') FF.toast('New credential request', `${e.data.name} (store #${e.data.store_id}) is waiting for you`);
+  if (e.event === 'ticket') FF.toast(`New ${e.data.priority} ticket`, e.data.subject); };
+</script>{% block page_scripts %}{% endblock %}{% endblock %}

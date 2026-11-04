@@ -1,0 +1,21 @@
+{% extends "layout.html" %}{% block heading %}Exit gates{% endblock %}
+{% block content %}
+<div class="split">
+  <div>
+    {% if result %}<div class="gate {{ 'open' if result.open else 'closed' }}" style="margin-bottom:16px">{{ '🟢 GATE OPEN' if result.open else '🔴 GATE CLOSED' }}<br><small style="font-size:.9rem">{{ result.reason }}{% if result.order_number %} · {{ result.order_number }} · {{ result['items'] }} items · {{ result.total|inr }}{% endif %}</small></div>{% endif %}
+    <div class="card"><h2>Gate scanner</h2><p class="muted">Simulates the hardware gate (or use as a staff override). Paste/scan the code under the shopper's receipt QR, or use the camera.</p>
+      {% for g in data.gates %}<form method="post" action="/gate/{{ g.id }}/scan" class="row" style="margin-bottom:8px"><b style="width:100px">{{ g.name }}</b><input name="code" class="code" placeholder="FF1.123.abcd…" required style="flex:1"><button class="btn">Verify</button></form>{% endfor %}
+      <button class="btn sec sm" onclick="startCam()">📷 Scan with camera</button><div id="cam" style="max-width:320px;margin-top:8px"></div>
+    </div>
+    {% if user.role in ('owner','store_manager') %}<div class="card"><h3>Gate hardware keys</h3><p class="muted">Gate devices call <code>POST /gate/verify</code> with header <code>X-Gate-Key</code>.</p>
+      {% for g in data.gates %}<div><b>{{ g.name }}</b>: <code>{{ g.api_key }}</code></div>{% endfor %}</div>{% endif %}
+  </div>
+  <div class="card"><h2>Recent gate events</h2><div class="feed" id="gfeed">{% for e in data.events %}<div>{{ '🟢' if e.opened else '🔴' }} {{ e.reason }} <small class="muted">{{ e.at|dt('%d %b %I:%M:%S %p') }}</small></div>{% else %}<p class="muted">No scans yet.</p>{% endfor %}</div></div>
+</div>
+{% endblock %}
+{% block page_scripts %}<script src="/static/vendor/html5-qrcode.min.js"></script><script>
+function startCam() { const s = new Html5Qrcode('cam'); s.start({facingMode: 'environment'}, {fps: 10, qrbox: 220}, (txt) => {
+  s.stop(); const f = document.querySelector('form input.code'); f.value = txt; f.form.submit(); }); }
+const _p = window.onLive; window.onLive = (e) => { _p && _p(e); if (e.event !== 'gate') return;
+  const d = document.createElement('div'); d.textContent = (e.data.open ? '🟢 ' : '🔴 ') + e.data.reason + ' · ' + (e.data.order_number || ''); document.getElementById('gfeed').prepend(d); };
+</script>{% endblock %}

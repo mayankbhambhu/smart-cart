@@ -1,0 +1,44 @@
+# Render Blueprint: 1 Postgres + API + 3 dashboards, each with its own live URL.
+databases:
+  - name: freshflow-db
+    plan: basic-256mb
+services:
+  - type: web
+    name: freshflow-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /health
+    envVars:
+      - { key: DATABASE_URL, fromDatabase: { name: freshflow-db, property: connectionString } }
+      - { key: SECRET_KEY, generateValue: true }
+      - { key: DEBUG, value: "false" }
+      - { key: PAYMENTS_MODE, value: mock }
+  - type: web
+    name: freshflow-shop          # Customer dashboard
+    runtime: python
+    buildCommand: pip install -r web/requirements.txt
+    startCommand: uvicorn web.customer.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    envVars:
+      - { key: API_URL, value: https://freshflow-api.onrender.com }
+      - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
+      - { key: SESSION_SECRET, generateValue: true }
+  - type: web
+    name: freshflow-store         # Store operations dashboard
+    runtime: python
+    buildCommand: pip install -r web/requirements.txt
+    startCommand: uvicorn web.store.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    envVars:
+      - { key: API_URL, value: https://freshflow-api.onrender.com }
+      - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
+      - { key: SESSION_SECRET, generateValue: true }
+  - type: web
+    name: freshflow-admin         # Admin operations dashboard
+    runtime: python
+    buildCommand: pip install -r web/requirements.txt
+    startCommand: uvicorn web.admin.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    envVars:
+      - { key: API_URL, value: https://freshflow-api.onrender.com }
+      - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
+      - { key: SESSION_SECRET, generateValue: true }
