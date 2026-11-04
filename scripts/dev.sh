@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Start the API + all three dashboards locally (SQLite, sandbox payments).
 set -e
+# --reload-dir keeps the auto-reloader away from .venv (otherwise it restarts in a loop)
 cd "$(dirname "$0")/.."
 [ -d .venv ] || { python3 -m venv .venv; .venv/bin/pip install -q -r backend/requirements.txt -r web/requirements.txt; }
 (cd backend && ../.venv/bin/python -m app.seed)
 trap 'kill 0' EXIT
-(cd backend && ../.venv/bin/uvicorn app.main:app --port 8000 --reload) &
-.venv/bin/uvicorn web.customer.app:app --port 8001 --reload &
-.venv/bin/uvicorn web.store.app:app --port 8002 --reload &
-.venv/bin/uvicorn web.admin.app:app --port 8003 --reload &
+(cd backend && ../.venv/bin/uvicorn app.main:app --port 8000 --reload --reload-dir app) &
+.venv/bin/uvicorn web.customer.app:app --port 8001 --reload --reload-dir web &
+.venv/bin/uvicorn web.store.app:app --port 8002 --reload --reload-dir web &
+.venv/bin/uvicorn web.admin.app:app --port 8003 --reload --reload-dir web &
 sleep 2
 echo ""
 echo "  API + docs       http://localhost:8000/docs"
