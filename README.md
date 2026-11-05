@@ -151,7 +151,7 @@ freshflow/
 │   │                                    # attendance, team & onboarding, analysis, offers, support
 │   └── admin/     app.py + templates/   # overview, requests, stores, employees, tickets
 │
-└── mobile/                      # ── iOS + Android (Expo SDK 54, Expo Router, TypeScript) ──
+└── mobile/                      # ── iOS + Android (Expo SDK 58, Expo Router, TypeScript) ──
     ├── app.json                 # permissions, Apple Sign-In, Stripe/Google Pay plugins
     ├── eas.json                 # cloud builds for the App Store / Play Store
     └── src/
@@ -195,19 +195,42 @@ Store Ops → **Exit gates** to see the gate open. Re-scanning within 2 minutes 
 
 With PostgreSQL instead of SQLite: `docker compose up --build`, then `docker compose exec api python -m app.seed`.
 
-### Mobile app
+### Mobile app (on your phone)
 
-```bash
-cd mobile && npm install
-```
+You need [Node.js](https://nodejs.org) (LTS) on your computer and the free **Expo Go** app on
+your phone (App Store / Play Store). The phone and computer must be on the **same Wi-Fi**.
 
-```bash
-EXPO_PUBLIC_API_URL=http://<your-computer-LAN-IP>:8000 npx expo start
-```
+1. Start the backend with `./scripts/dev.sh`. At the end it prints the exact mobile command,
+   including your computer's network IP.
+2. In a **second terminal**:
 
-Shopping, lists, routing, receipts and mock payments work in **Expo Go**. Stripe's
-PaymentSheet (Apple Pay / Google Pay) and Sign in with Apple need a **development build**:
-run `npx eas-cli build --profile development`, or `npx expo run:ios` / `npx expo run:android`.
+   ```bash
+   cd mobile
+   ```
+
+   ```bash
+   npm install
+   ```
+
+   ```bash
+   EXPO_PUBLIC_API_URL=http://<your-computer-IP>:8000 npx expo start
+   ```
+
+   On a Mac, `ipconfig getifaddr en0` prints the IP.
+3. Scan the QR code that appears: with the **Camera app** on iPhone, or from inside **Expo Go**
+   on Android. The app opens; log in with `asha@example.com` / `Password@123`.
+
+Simulators work too: press `i` (iOS Simulator, needs Xcode) or `a` (Android emulator) in the
+Expo terminal. There, `localhost` works, so you can skip `EXPO_PUBLIC_API_URL`.
+
+Troubleshooting: if the app can't log in ("Network request failed"), check that both devices
+are on the same Wi-Fi, that the IP is right, and that macOS allowed incoming connections for
+Python (System Settings → Network → Firewall). Open `http://<IP>:8000/health` in the phone's
+browser to test.
+
+Shopping, lists, routing, barcode scanning, receipts and sandbox payments work in Expo Go.
+Real Apple Pay / Google Pay and Sign in with Apple need a **development build**
+(`npx eas-cli build --profile development`, or `npx expo run:ios` / `npx expo run:android`).
 App Store / Play Store builds: `npx eas-cli build --profile production`.
 
 ### Tests
