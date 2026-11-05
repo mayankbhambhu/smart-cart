@@ -7,7 +7,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "r
 import { Button, Card, H1, Input, Muted, Row, s } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { GOOGLE_IDS } from "@/lib/config";
+import { API_URL, GOOGLE_IDS } from "@/lib/config";
 import { colors } from "@/lib/theme";
 import type { User } from "@/lib/types";
 
@@ -96,6 +96,7 @@ export default function Login() {
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={12} style={{ height: 48 }} onPress={apple} />}
         <Muted>Demo: asha@example.com / Password@123</Muted>
+        <Muted>Server: {API_URL}</Muted>
       </ScrollView>
     </KeyboardAvoidingView>
   );

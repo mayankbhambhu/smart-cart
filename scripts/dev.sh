@@ -21,7 +21,7 @@ echo "  Password for every demo account: Password@123"
 LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || true)
 if [ -n "$LAN_IP" ]; then
   echo ""
-  echo "  Mobile app: in a second terminal run"
-  echo "    cd mobile && npm install && EXPO_PUBLIC_API_URL=http://$LAN_IP:8000 npx expo start"
+  echo "  Mobile app: in a second terminal run   cd mobile && npm install && npx expo start"
+  echo "  (phone and this computer on the same Wi-Fi; the app finds the API at http://$LAN_IP:8000)"
 fi
 wait

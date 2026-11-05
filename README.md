@@ -200,8 +200,7 @@ With PostgreSQL instead of SQLite: `docker compose up --build`, then `docker com
 You need [Node.js](https://nodejs.org) (LTS) on your computer and the free **Expo Go** app on
 your phone (App Store / Play Store). The phone and computer must be on the **same Wi-Fi**.
 
-1. Start the backend with `./scripts/dev.sh`. At the end it prints the exact mobile command,
-   including your computer's network IP.
+1. Start the backend with `./scripts/dev.sh`.
 2. In a **second terminal**:
 
    ```bash
@@ -213,15 +212,16 @@ your phone (App Store / Play Store). The phone and computer must be on the **sam
    ```
 
    ```bash
-   EXPO_PUBLIC_API_URL=http://<your-computer-IP>:8000 npx expo start
+   npx expo start
    ```
 
-   On a Mac, `ipconfig getifaddr en0` prints the IP.
+   The app finds the API on your computer by itself (it uses the same address the phone
+   loaded the app from). The login screen shows the server address it is using.
 3. Scan the QR code that appears: with the **Camera app** on iPhone, or from inside **Expo Go**
    on Android. The app opens; log in with `asha@example.com` / `Password@123`.
 
 Simulators work too: press `i` (iOS Simulator, needs Xcode) or `a` (Android emulator) in the
-Expo terminal. There, `localhost` works, so you can skip `EXPO_PUBLIC_API_URL`.
+Expo terminal.
 
 Troubleshooting: if the app can't log in ("Network request failed"), check that both devices
 are on the same Wi-Fi, that the IP is right, and that macOS allowed incoming connections for
