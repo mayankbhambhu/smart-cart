@@ -1,0 +1,10 @@
+Terminal 1: 
+./scripts/dev.sh
+Terminal 2: 
+cd mobile
+npx expo start
+Scan the QR code in Expo Go.
+
+Restart Terminal 2 with 
+npx expo start -c 
+and reload the app.
