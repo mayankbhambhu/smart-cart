@@ -1,6 +1,5 @@
 """Verification of third-party identity tokens (Google, Apple, Firebase) and SMS OTP delivery."""
 import logging
-import re
 
 import jwt
 import requests
@@ -63,17 +62,13 @@ def verify_apple_identity_token(token: str) -> dict:
 
 
 def normalize_phone(raw: str) -> str:
-    """Turn what people type ("98111 11111", "091-9811111111", "+91 98111 11111") into +919811111111."""
-    s = re.sub(r"[\s\-().]", "", raw or "")
-    if s.startswith("00"):
-        s = "+" + s[2:]
-    if not s.startswith("+"):
-        s = s.lstrip("0")
-        cc = settings.PHONE_DEFAULT_COUNTRY_CODE.lstrip("+")
-        s = "+" + (s if len(s) > 10 and s.startswith(cc) else cc + s)
-    if not re.fullmatch(r"\+[1-9]\d{9,14}", s):
-        raise HTTPException(400, "Enter a valid mobile number, e.g. +91 98111 11111")
-    return s
+    """Canonical +<country><number> form; a clear 400 error if it isn't a phone number."""
+    from app.core.phone import to_e164
+
+    try:
+        return to_e164(raw)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 def _twilio_error(resp) -> str:

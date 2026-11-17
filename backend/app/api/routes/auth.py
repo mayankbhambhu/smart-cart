@@ -47,7 +47,13 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenOut)
 def login(data: LoginIn, db: Session = Depends(get_db)):
     ident = data.identifier.strip().lower()
-    user = db.query(User).filter(or_(User.email == ident, User.phone == data.identifier.strip())).first()
+    phones = {data.identifier.strip()}
+    if "@" not in ident:  # a phone number typed any way still finds the account
+        try:
+            phones.add(normalize_phone(ident))
+        except HTTPException:
+            pass
+    user = db.query(User).filter(or_(User.email == ident, User.phone.in_(phones))).first()
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Incorrect email/phone or password")
     if not user.is_active:

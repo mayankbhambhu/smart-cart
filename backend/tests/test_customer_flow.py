@@ -132,3 +132,18 @@ def test_otp_refuses_deactivated_accounts(client):
         db.commit()
     r = client.post("/auth/otp/request", json={"phone": "9877777777"}).json()
     assert client.post("/auth/otp/verify", json={"phone": "9877777777", "code": r["dev_code"]}).status_code == 403
+
+
+def test_phone_numbers_stored_in_one_form(client, login):
+    """Numbers typed loosely when creating accounts are stored as +91…, so OTP and password login find them."""
+    r = client.post("/auth/register", json={"full_name": "Meena", "email": "meena@example.com", "password": "secret123",
+                                            "phone": "98333 44455"})
+    assert r.json()["user"]["phone"] == "+919833344455"
+    assert client.post("/auth/login", json={"identifier": "9833344455", "password": "secret123"}).status_code == 200
+    mgr = login("manager.blr01@freshflow.app")
+    req = client.post("/ops/stores/1/credential-requests", headers=mgr, json={
+        "full_name": "Ravi", "email": "ravi.new@example.com", "phone": "098 7654 3210", "role": "worker",
+        "hourly_wage": 100, "joining_date": "2026-12-01"}).json()
+    assert req["phone"] == "+919876543210"
+    assert client.post("/auth/register", json={"full_name": "X", "email": "x@example.com", "password": "secret123",
+                                               "phone": "12ab"}).status_code == 422

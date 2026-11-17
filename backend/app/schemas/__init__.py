@@ -1,11 +1,18 @@
 """Pydantic request/response schemas."""
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.core.phone import to_e164
 
 
 class ORM(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+def _phone(v):
+    """Store every phone number in one form so OTP and password login always find the account."""
+    return to_e164(v) if v else v
 
 
 # ---- Auth ------------------------------------------------------------------------
@@ -14,6 +21,7 @@ class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     phone: str | None = None
+    _norm_phone = field_validator("phone")(_phone)
 
 
 class LoginIn(BaseModel):
@@ -60,6 +68,7 @@ class UserOut(ORM):
 class ProfileUpdateIn(BaseModel):
     full_name: str | None = None
     phone: str | None = None
+    _norm_phone = field_validator("phone")(_phone)
     dietary_preferences: list[str] | None = None
     default_address: str | None = None
     preferred_store_id: int | None = None
@@ -181,6 +190,7 @@ class CredentialRequestIn(BaseModel):
     email: EmailStr
     phone: str
     role: str = Field(pattern="^(worker|floor_manager|store_manager)$")
+    _norm_phone = field_validator("phone")(_phone)
     hourly_wage: float = Field(gt=0)
     joining_date: date
     notes: str = ""
@@ -254,6 +264,7 @@ class StoreCreateIn(BaseModel):
     owner_name: str
     owner_email: EmailStr
     owner_phone: str
+    _norm_phone = field_validator("owner_phone")(_phone)
 
 
 class OfferCreateIn(BaseModel):
