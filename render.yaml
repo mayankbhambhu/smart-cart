@@ -24,6 +24,9 @@ services:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
       - { key: SESSION_SECRET, generateValue: true }
+      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
+      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
+      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }
   - type: web
     name: freshflow-store         # Store operations dashboard
     runtime: python
@@ -33,6 +36,9 @@ services:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
       - { key: SESSION_SECRET, generateValue: true }
+      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
+      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
+      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }
   - type: web
     name: freshflow-admin         # Admin operations dashboard
     runtime: python
@@ -42,3 +48,6 @@ services:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
       - { key: SESSION_SECRET, generateValue: true }
+      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
+      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
+      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }

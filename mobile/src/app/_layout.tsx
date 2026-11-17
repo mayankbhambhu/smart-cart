@@ -16,6 +16,9 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="staff" options={{ headerShown: false }} />
+            <Stack.Screen name="admin" options={{ headerShown: false }} />
+            <Stack.Screen name="change-password" options={{ title: "Set your password", headerBackVisible: false }} />
             <Stack.Screen name="cart" options={{ title: "Cart & checkout", presentation: "modal" }} />
             <Stack.Screen name="scan" options={{ title: "Scan barcode", presentation: "fullScreenModal" }} />
             <Stack.Screen name="stores" options={{ title: "Stores & stock check" }} />

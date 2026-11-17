@@ -3,9 +3,11 @@
 <div class="auth"><div class="card">
   <div class="logo" style="padding-left:0"><i>F</i><span>FreshFlow<small>{{ subtitle }}</small></span></div>
   {% include "_flash.html" %}
+  {% set switched = request.query_params.get('switched') %}
+  {% if switched in ['customer', 'store', 'admin'] %}<div class="flash ok">Your account opens the {{ {'customer': 'shopping site', 'store': 'Store Operations dashboard', 'admin': 'Admin dashboard'}[switched] }}, so we brought you here. Sign in once more to continue.</div>{% endif %}
   <form method="post" action="/login">
     <input type="hidden" name="next" value="{{ next or '/' }}">
-    <div class="field"><label>Email or phone</label><input name="identifier" required autofocus value="{{ demo or '' }}"></div>
+    <div class="field"><label>Email or phone</label><input name="identifier" required autofocus value="{{ request.query_params.get('identifier') or demo or '' }}"></div>
     <div class="field"><label>Password</label><input name="password" type="password" required></div>
     <button class="btn block lg">Sign in</button>
   </form>

@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse
 
-from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session
+from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session, to_role_app
 
 app, templates = make_app("FreshFlow Admin", Path(__file__).parent / "templates", "admin")
 ADMIN = {"admin"}
@@ -35,9 +35,8 @@ async def login(request: Request, identifier: str = Form(...), password: str = F
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login", status_code=303)
-    if r["user"]["role"] != "admin":
-        flash(request, "Admin accounts only.", "error")
-        return RedirectResponse("/login", status_code=303)
+    if r["user"]["role"] != "admin":  # shopper / staff account → their own site
+        return to_role_app(identifier, r["user"]["role"])
     store_session(request, r)
     return RedirectResponse(next or "/", status_code=303)
 

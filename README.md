@@ -172,6 +172,18 @@ freshflow/
         └── lib/                 # api client, auth, cart, live (WebSocket), payments, theme
 ```
 
+## One login, the right app for each role
+
+Everyone signs in on the same login screen. The **role stored on the account** decides which app opens:
+
+| Account role | Phone app opens | Website |
+|---|---|---|
+| `customer` | Shopping app (shop, Scan & Go, family lists, orders) | Customer site (8001) |
+| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`mobile/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (8002) |
+| `admin` | **Admin** (`mobile/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (8003) |
+
+The routing lives in `mobile/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. On the websites, signing in at the wrong dashboard sends you to the right one with your email filled in (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
+
 ## Run it locally
 
 ```bash

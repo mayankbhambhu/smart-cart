@@ -8,6 +8,7 @@ import { Button, Card, H1, Input, Muted, Row, s } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { API_URL, GOOGLE_IDS } from "@/lib/config";
+import { APP_LABEL, appFor, homeHref, ROLE_LABEL } from "@/lib/roles";
 import { colors } from "@/lib/theme";
 import type { User } from "@/lib/types";
 
@@ -33,7 +34,15 @@ export default function Login() {
 
   async function run(fn: () => Promise<TokenOut>) {
     setBusy(true);
-    try { await signIn(await fn()); router.replace("/(tabs)"); }
+    try {
+      const payload = await fn();
+      await signIn(payload);
+      // The role stored on the account decides which app opens.
+      const u = payload.user;
+      if (u.must_change_password) return router.replace("/change-password");
+      if (appFor(u.role) !== "shopper") Alert.alert(`Welcome, ${u.full_name.split(" ")[0] || "there"}`, `Signed in as ${ROLE_LABEL[u.role] ?? u.role} · opening ${APP_LABEL[appFor(u.role)]}`);
+      router.replace(homeHref(u.role));
+    }
     catch (e) { Alert.alert("Sign in failed", (e as Error).message); }
     finally { setBusy(false); }
   }
@@ -64,6 +73,7 @@ export default function Login() {
           <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 32, fontWeight: "900" }}>F</Text></View>
           <H1>FreshFlow</H1><Muted>Groceries in minutes · Scan & Go in store</Muted>
+          <Muted>Shoppers, store staff and admins all sign in here — your account opens the right app.</Muted>
         </View>
         <Card>
           <Row style={{ marginBottom: 12 }}>
@@ -95,7 +105,7 @@ export default function Login() {
         {Platform.OS === "ios" && <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={12} style={{ height: 48 }} onPress={apple} />}
-        <Muted>Demo: asha@example.com / Password@123</Muted>
+        <Muted>Demo (password Password@123): asha@example.com · manager.blr01@freshflow.app · worker1.blr01@freshflow.app · admin@freshflow.app</Muted>
         <Muted>Server: {API_URL}</Muted>
       </ScrollView>
     </KeyboardAvoidingView>

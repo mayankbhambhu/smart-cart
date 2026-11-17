@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import { Text } from "react-native";
 import { useAuth } from "@/lib/auth";
+import { appFor, homeHref } from "@/lib/roles";
 import { colors } from "@/lib/theme";
 
 const icon = (e: string) => ({ focused }: { focused: boolean }) => <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>{e}</Text>;
@@ -8,6 +9,7 @@ const icon = (e: string) => ({ focused }: { focused: boolean }) => <Text style={
 export default function TabsLayout() {
   const { user, ready } = useAuth();
   if (ready && !user) return <Redirect href="/login" />;
+  if (user && appFor(user.role) !== "shopper") return <Redirect href={homeHref(user.role)} />;
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: colors.brand, headerTitleStyle: { fontWeight: "800" } }}>
       <Tabs.Screen name="index" options={{ title: "Shop", tabBarIcon: icon("🛍️") }} />

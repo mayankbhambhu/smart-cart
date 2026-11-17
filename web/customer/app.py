@@ -7,8 +7,8 @@ from pathlib import Path
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
 
-from web.shared import (Api, ApiError, api_for, back, flash, login_required, make_app, render,
-                        store_session)
+from web.shared import (Api, ApiError, api_for, app_for_role, back, flash, login_required, make_app, render,
+                        store_session, to_role_app)
 
 app, templates = make_app("FreshFlow", Path(__file__).parent / "templates", "customer")
 CUSTOMER = {"customer"}
@@ -39,10 +39,13 @@ async def login_page(request: Request, next: str = "/"):
 @app.post("/login")
 async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):
     try:
-        store_session(request, Api().post("/auth/login", {"identifier": identifier, "password": password}))
+        r = Api().post("/auth/login", {"identifier": identifier, "password": password})
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login", status_code=303)
+    if app_for_role(r["user"]["role"]) != "customer":  # staff / admin account → their dashboard
+        return to_role_app(identifier, r["user"]["role"])
+    store_session(request, r)
     return RedirectResponse(next or "/", status_code=303)
 
 
@@ -76,11 +79,13 @@ async def otp_request(request: Request, phone: str = Form(...)):
 @app.post("/otp/verify")
 async def otp_verify(request: Request, code: str = Form(...), full_name: str = Form("")):
     try:
-        store_session(request, Api().post("/auth/otp/verify", {"phone": request.session.get("otp_phone"),
-                                                               "code": code, "full_name": full_name}))
+        r = Api().post("/auth/otp/verify", {"phone": request.session.get("otp_phone"), "code": code, "full_name": full_name})
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login?otp=1", status_code=303)
+    if app_for_role(r["user"]["role"]) != "customer":
+        return to_role_app(r["user"]["email"] or r["user"]["phone"] or "", r["user"]["role"])
+    store_session(request, r)
     return RedirectResponse("/", status_code=303)
 
 

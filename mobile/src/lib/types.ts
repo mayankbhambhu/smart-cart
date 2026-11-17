@@ -1,6 +1,7 @@
 export type User = {
   id: number; email: string | null; phone: string | null; full_name: string; role: string;
   dietary_preferences: string[]; default_address: string | null; preferred_store_id: number | null;
+  store_id: number | null; must_change_password: boolean; employee_code?: string | null;
 };
 export type Store = { id: number; name: string; address: string; city: string; latitude: number; longitude: number;
   opens_at: number; closes_at: number; distance_km?: number | null };

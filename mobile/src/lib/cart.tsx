@@ -12,7 +12,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const refresh = useCallback(async () => { setCart(await api.get<Cart>("/cart")); }, []);
-  useEffect(() => { if (user) refresh().catch(() => {}); else setCart(null); }, [user, refresh]);
+  useEffect(() => { if (user?.role === "customer") refresh().catch(() => {}); else setCart(null); }, [user, refresh]);
 
   const setQty = async (productId: number, quantity: number) => {
     try { setCart(await api.put<Cart>(`/cart/items/${productId}`, { quantity: Math.max(0, quantity) })); }

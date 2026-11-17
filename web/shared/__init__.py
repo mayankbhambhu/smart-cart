@@ -6,6 +6,7 @@ kept in a signed session cookie. Live updates come from the API's WebSocket.
 """
 import os
 from datetime import datetime
+from urllib.parse import urlencode
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,28 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", API_URL)  # what the browser uses (WebSocket)
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-session-secret-change-me")
 SHARED_DIR = Path(__file__).parent
+
+# Where each dashboard lives. The role stored on the account decides which one a person uses.
+APP_URLS = {
+    "customer": os.getenv("CUSTOMER_APP_URL", "http://localhost:8001").rstrip("/"),
+    "store": os.getenv("STORE_APP_URL", "http://localhost:8002").rstrip("/"),
+    "admin": os.getenv("ADMIN_APP_URL", "http://localhost:8003").rstrip("/"),
+}
+STAFF_ROLES = {"worker", "floor_manager", "store_manager", "owner"}
+
+
+def app_for_role(role: str) -> str:
+    if role == "admin":
+        return "admin"
+    return "store" if role in STAFF_ROLES else "customer"
+
+
+def to_role_app(identifier: str, role: str) -> RedirectResponse:
+    """Send someone who signed in at the wrong dashboard to the right one's login page.
+    The target comes only from APP_URLS (never from the request), so this can't be an open redirect."""
+    target = app_for_role(role)
+    query = urlencode({"identifier": identifier, "switched": target})
+    return RedirectResponse(f"{APP_URLS[target]}/login?{query}", status_code=303)
 
 
 class ApiError(Exception):
