@@ -9,7 +9,7 @@ from fastapi import Form, Request
 from fastapi.responses import RedirectResponse
 
 from web.shared.signin import add_signin_routes
-from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session, finish_login
+from web.shared import ApiError, api_for, back, flash, login_required, make_app, render
 
 app, templates = make_app("FreshFlow Store Ops", Path(__file__).parent / "templates", "store")
 add_signin_routes(app, templates, "store")  # Google button, email magic link, SSO
@@ -53,29 +53,6 @@ def sid(request: Request) -> int:
 
 
 # ---- auth ------------------------------------------------------------------------------
-@app.get("/login")
-async def login_page(request: Request, next: str = "/"):
-    return render(templates, request, "_login.html", next=next, subtitle="Store Operations",
-                  demo_accounts=["owner.blr01@freshflow.app", "manager.blr01@freshflow.app",
-                                 "floor1.blr01@freshflow.app", "worker1.blr01@freshflow.app"])
-
-
-@app.post("/login")
-async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):
-    try:
-        r = Api().post("/auth/login", {"identifier": identifier, "password": password})
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login", status_code=303)
-    return RedirectResponse(finish_login(request, r, "store", next or "/"), status_code=303)
-
-
-@app.get("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse("/login", status_code=303)
-
-
 @app.get("/account")
 @guard()
 async def account(request: Request):

@@ -5,10 +5,9 @@ Run: uvicorn web.admin.app:app --port 8003   (from the repo root)
 from pathlib import Path
 
 from fastapi import Form, Request
-from fastapi.responses import RedirectResponse
 
 from web.shared.signin import add_signin_routes
-from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session, finish_login
+from web.shared import api_for, back, flash, login_required, make_app, render
 
 app, templates = make_app("FreshFlow Admin", Path(__file__).parent / "templates", "admin")
 add_signin_routes(app, templates, "admin")  # Google button, email magic link, SSO
@@ -22,28 +21,6 @@ def page(request, name, **ctx):
     ctx.setdefault("live_channels", ["admin", f"user:{request.session['user']['id']}"])
     ctx["nav"] = NAV
     return render(templates, request, name, **ctx)
-
-
-@app.get("/login")
-async def login_page(request: Request, next: str = "/"):
-    return render(templates, request, "_login.html", next=next, subtitle="Admin Operations",
-                  demo_accounts=["admin@freshflow.app"])
-
-
-@app.post("/login")
-async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):
-    try:
-        r = Api().post("/auth/login", {"identifier": identifier, "password": password})
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login", status_code=303)
-    return RedirectResponse(finish_login(request, r, "admin", next or "/"), status_code=303)
-
-
-@app.get("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse("/login", status_code=303)
 
 
 @app.get("/")

@@ -1,16 +1,53 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="auth"><div class="card">
-  <div class="logo" style="padding-left:0"><i>F</i><span>FreshFlow<small>{{ subtitle }}</small></span></div>
+  <div style="text-align:center;margin-bottom:14px">
+    <div class="logo" style="justify-content:center;padding:0 0 6px"><i>F</i><span>FreshFlow</span></div>
+    <div class="muted" style="font-size:.9rem">Groceries in minutes · Scan & Go in store</div>
+    <div class="muted" style="font-size:.85rem;margin-top:4px">Shoppers, store staff and admins all sign in here — your account opens the right app.</div>
+  </div>
   {% include "_flash.html" %}
   {% set switched = request.query_params.get('switched') %}
   {% if switched in ['customer', 'store', 'admin'] %}<div class="flash ok">Your account opens the {{ {'customer': 'shopping site', 'store': 'Store Operations dashboard', 'admin': 'Admin dashboard'}[switched] }}, so we brought you here. Sign in once more to continue.</div>{% endif %}
+
+  {% set nq = ('&next=' ~ (next|urlencode)) if next and next != '/' else '' %}
+  <div class="row" role="tablist" style="gap:6px;margin-bottom:14px">
+    {% for m, label in [('email', 'Email'), ('phone', 'Phone OTP'), ('register', 'Sign up')] %}
+    <a role="tab" aria-selected="{{ 'true' if mode == m else 'false' }}" href="/login?mode={{ m }}{{ nq }}" class="btn sm {{ '' if mode == m else 'sec' }}" style="flex:1">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  {% if mode == 'email' %}
   <form method="post" action="/login">
     <input type="hidden" name="next" value="{{ next or '/' }}">
-    <div class="field"><label>Email or phone</label><input name="identifier" required autofocus value="{{ request.query_params.get('identifier') or demo or '' }}"></div>
-    <div class="field"><label>Password</label><input name="password" type="password" required></div>
+    <div class="field"><label>Email or phone</label><input name="identifier" required autofocus autocomplete="username" value="{{ request.query_params.get('identifier') or '' }}"></div>
+    <div class="field"><label>Password</label><input name="password" type="password" required autocomplete="current-password"></div>
     <button class="btn block lg">Sign in</button>
   </form>
+  {% elif mode == 'phone' %}
+    {% if otp_step %}
+    <form method="post" action="/otp/verify">
+      <p class="muted" style="font-size:.85rem;margin-top:0">Code sent to {{ otp_phone }} · <a href="/login?mode=phone">change number</a></p>
+      <div class="field"><label>6-digit code</label><input name="code" inputmode="numeric" maxlength="6" required autofocus autocomplete="one-time-code"></div>
+      <div class="field"><label>Your name (new accounts)</label><input name="full_name"></div>
+      <button class="btn block lg">Verify & continue</button>
+    </form>
+    {% else %}
+    <form method="post" action="/otp/request">
+      <div class="field"><label>Phone number</label><input name="phone" type="tel" placeholder="+91 98xxxxxxxx" required autofocus autocomplete="tel"></div>
+      <button class="btn block lg">Send OTP</button>
+    </form>
+    {% endif %}
+  {% else %}
+  <form method="post" action="/register">
+    <div class="field"><label>Full name</label><input name="full_name" required autofocus autocomplete="name"></div>
+    <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email"></div>
+    <div class="field"><label>Password (min 8)</label><input name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+    <button class="btn block lg">Create account</button>
+    <p class="muted" style="font-size:.8rem;margin-bottom:0">New accounts are shopper accounts. Store staff get their login from the admin team.</p>
+  </form>
+  {% endif %}
+
   {% set p = signin_providers() %}
   <div class="divider">or</div>
   <div class="stack" id="signin-options">
@@ -21,19 +58,23 @@
       <button class="btn sec block" type="button" disabled title="Set GOOGLE_WEB_CLIENT_ID on the API (see README)">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="18" height="18"> Sign in with Google · not set up</button>
     {% endif %}
-    <form id="magic-form" class="stack" autocomplete="on">
-      <input id="magic-email" type="email" name="email" placeholder="Your email for a sign-in link" required style="width:100%" {{ 'disabled' if not p.firebase_email_link.enabled }}>
-      <button class="btn sec block" {{ 'disabled' if not p.firebase_email_link.enabled }} title="{{ '' if p.firebase_email_link.enabled else 'Set the FIREBASE_* settings on the API (see README)' }}">✉️ Email me a sign-in link</button>
-    </form>
     {% if p.sso.enabled %}
       <a class="btn sec block" href="/auth/sso">🔐 {{ p.sso.label }}</a>
     {% else %}
       <button class="btn sec block" type="button" disabled title="Set the OIDC_* settings on the API (see README)">🔐 Sign in with SSO · not set up</button>
     {% endif %}
+    <div style="border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-weight:700;margin-bottom:8px">✉️ Email me a sign-in link</div>
+      <form id="magic-form" class="stack" autocomplete="on">
+        <input id="magic-email" type="email" name="email" placeholder="you@example.com" required style="width:100%" {{ 'disabled' if not p.firebase_email_link.enabled }}>
+        <button class="btn sec block" {{ 'disabled' if not p.firebase_email_link.enabled }} title="{{ '' if p.firebase_email_link.enabled else 'Set the FIREBASE_* settings on the API (see README)' }}">Send link{{ '' if p.firebase_email_link.enabled else ' · not set up' }}</button>
+      </form>
+    </div>
   </div>
-  {% block extra %}{% endblock %}
+
   {% if demo_accounts %}<div class="divider">demo accounts · password Password@123</div>
-  <div class="muted" style="font-size:.82rem">{% for a in demo_accounts %}<div>{{ a }}</div>{% endfor %}</div>{% endif %}
+  <div style="font-size:.82rem">{% for email, role in demo_accounts %}
+    <div class="row between" style="padding:2px 0"><a href="/login?mode=email&identifier={{ email|urlencode }}{{ nq }}">{{ email }}</a><span class="muted">{{ role }}</span></div>{% endfor %}</div>{% endif %}
 </div></div>
 {% endblock %}
 {% block scripts %}{{ super() }}

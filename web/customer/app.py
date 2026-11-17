@@ -8,8 +8,7 @@ from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
 
 from web.shared.signin import add_signin_routes
-from web.shared import (Api, ApiError, api_for, back, flash, login_required, make_app, render,
-                        store_session, finish_login)
+from web.shared import Api, api_for, back, flash, login_required, make_app, render
 
 app, templates = make_app("FreshFlow", Path(__file__).parent / "templates", "customer")
 add_signin_routes(app, templates, "customer")  # Google button, email magic link, SSO
@@ -32,65 +31,6 @@ def icons(api: Api) -> dict:
 
 
 # ---- auth ------------------------------------------------------------------------------
-@app.get("/login")
-async def login_page(request: Request, next: str = "/"):
-    return page(request, "login.html", next=next, subtitle="Groceries in minutes · Scan & Go",
-                demo_accounts=["asha@example.com", "rohan@example.com (same family list)"])
-
-
-@app.post("/login")
-async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):
-    try:
-        r = Api().post("/auth/login", {"identifier": identifier, "password": password})
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login", status_code=303)
-    return RedirectResponse(finish_login(request, r, "customer", next or "/"), status_code=303)
-
-
-@app.post("/register")
-async def register(request: Request, full_name: str = Form(...), email: str = Form(...), password: str = Form(...)):
-    try:
-        store_session(request, Api().post("/auth/register", {"full_name": full_name, "email": email,
-                                                             "password": password}))
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login#register", status_code=303)
-    flash(request, "Welcome to FreshFlow! Use WELCOME50 on your first order.")
-    return RedirectResponse("/", status_code=303)
-
-
-@app.post("/otp/request")
-async def otp_request(request: Request, phone: str = Form(...)):
-    try:
-        r = Api().post("/auth/otp/request", {"phone": phone})
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login", status_code=303)
-    request.session["otp_phone"] = phone
-    msg = "We sent a 6-digit code to your phone."
-    if r.get("dev_code"):
-        msg += f" (Dev mode code: {r['dev_code']})"
-    flash(request, msg)
-    return RedirectResponse("/login?otp=1", status_code=303)
-
-
-@app.post("/otp/verify")
-async def otp_verify(request: Request, code: str = Form(...), full_name: str = Form("")):
-    try:
-        r = Api().post("/auth/otp/verify", {"phone": request.session.get("otp_phone"), "code": code, "full_name": full_name})
-    except ApiError as e:
-        flash(request, str(e), "error")
-        return RedirectResponse("/login?otp=1", status_code=303)
-    return RedirectResponse(finish_login(request, r, "customer"), status_code=303)
-
-
-@app.get("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse("/login", status_code=303)
-
-
 # ---- shop ------------------------------------------------------------------------------
 @app.get("/")
 @login_required(CUSTOMER)

@@ -30,6 +30,9 @@ APP_URLS = {
     "admin": os.getenv("ADMIN_APP_URL", "http://localhost:8003").rstrip("/"),
 }
 STAFF_ROLES = {"worker", "floor_manager", "store_manager", "owner"}
+ROLE_NAMES = {"customer": "Shopper", "worker": "Floor Assistant", "floor_manager": "Floor Manager",
+              "store_manager": "Store Manager", "owner": "Store Owner", "admin": "Platform Admin"}
+APP_NAMES = {"customer": "Shopping", "store": "Store Operations", "admin": "Admin"}
 
 
 def app_for_role(role: str) -> str:
