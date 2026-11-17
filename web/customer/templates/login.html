@@ -13,10 +13,6 @@
   <button class="btn sec">Send OTP</button>
 </form>
 {% endif %}
-<div class="row" style="margin-top:10px">
-  <button class="btn sec" style="flex:1" title="Requires GOOGLE_CLIENT_IDS configured" onclick="alert('Google Sign-In: add your OAuth client id (see README). The API endpoint /auth/google is ready.')"> Google</button>
-  <button class="btn sec" style="flex:1" title="Requires APPLE_BUNDLE_IDS configured" onclick="alert('Sign in with Apple works in the iOS app; web needs a Services ID (see README).')"> Apple</button>
-</div>
 <details id="register" style="margin-top:16px"><summary>New here? Create an account</summary>
 <form method="post" action="/register" style="margin-top:10px">
   <div class="field"><label>Full name</label><input name="full_name" required></div>

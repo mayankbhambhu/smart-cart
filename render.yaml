@@ -15,6 +15,9 @@ services:
       - { key: SECRET_KEY, generateValue: true }
       - { key: DEBUG, value: "false" }
       - { key: PAYMENTS_MODE, value: mock }
+      - { key: API_PUBLIC_URL, value: https://freshflow-api.onrender.com }
+      - { key: EMAIL_LINK_CONTINUE_URL, value: https://freshflow-shop.onrender.com/auth/email-link }
+      - { key: SSO_ALLOWED_REDIRECTS, value: "https://freshflow-shop.onrender.com/,https://freshflow-store.onrender.com/,https://freshflow-admin.onrender.com/,freshflow://" }
   - type: web
     name: freshflow-shop          # Customer dashboard
     runtime: python

@@ -7,10 +7,12 @@ from pathlib import Path
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
 
-from web.shared import (Api, ApiError, api_for, app_for_role, back, flash, login_required, make_app, render,
-                        store_session, to_role_app)
+from web.shared.signin import add_signin_routes
+from web.shared import (Api, ApiError, api_for, back, flash, login_required, make_app, render,
+                        store_session, finish_login)
 
 app, templates = make_app("FreshFlow", Path(__file__).parent / "templates", "customer")
+add_signin_routes(app, templates, "customer")  # Google button, email magic link, SSO
 CUSTOMER = {"customer"}
 DIETARY = ["vegan", "vegetarian", "gluten_free", "dairy_free", "organic", "sugar_free"]
 ICON = {}
@@ -43,10 +45,7 @@ async def login(request: Request, identifier: str = Form(...), password: str = F
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login", status_code=303)
-    if app_for_role(r["user"]["role"]) != "customer":  # staff / admin account → their dashboard
-        return to_role_app(identifier, r["user"]["role"])
-    store_session(request, r)
-    return RedirectResponse(next or "/", status_code=303)
+    return RedirectResponse(finish_login(request, r, "customer", next or "/"), status_code=303)
 
 
 @app.post("/register")
@@ -83,10 +82,7 @@ async def otp_verify(request: Request, code: str = Form(...), full_name: str = F
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login?otp=1", status_code=303)
-    if app_for_role(r["user"]["role"]) != "customer":
-        return to_role_app(r["user"]["email"] or r["user"]["phone"] or "", r["user"]["role"])
-    store_session(request, r)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse(finish_login(request, r, "customer"), status_code=303)
 
 
 @app.get("/logout")

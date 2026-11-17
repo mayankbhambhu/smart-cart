@@ -19,6 +19,8 @@ export default function RootLayout() {
             <Stack.Screen name="staff" options={{ headerShown: false }} />
             <Stack.Screen name="admin" options={{ headerShown: false }} />
             <Stack.Screen name="change-password" options={{ title: "Set your password", headerBackVisible: false }} />
+            <Stack.Screen name="magic-link" options={{ title: "Signing in" }} />
+            <Stack.Screen name="sso" options={{ title: "Single sign-on" }} />
             <Stack.Screen name="cart" options={{ title: "Cart & checkout", presentation: "modal" }} />
             <Stack.Screen name="scan" options={{ title: "Scan barcode", presentation: "fullScreenModal" }} />
             <Stack.Screen name="stores" options={{ title: "Stores & stock check" }} />

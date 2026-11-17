@@ -38,12 +38,36 @@ def app_for_role(role: str) -> str:
     return "store" if role in STAFF_ROLES else "customer"
 
 
-def to_role_app(identifier: str, role: str) -> RedirectResponse:
-    """Send someone who signed in at the wrong dashboard to the right one's login page.
-    The target comes only from APP_URLS (never from the request), so this can't be an open redirect."""
-    target = app_for_role(role)
-    query = urlencode({"identifier": identifier, "switched": target})
-    return RedirectResponse(f"{APP_URLS[target]}/login?{query}", status_code=303)
+def finish_login(request: Request, payload: dict, app_key: str, next_url: str = "/") -> str:
+    """After any sign-in (password, OTP, Google, email link, SSO), decide where to go. If the account
+    belongs on this dashboard, start the session here; otherwise hand the user, already signed in, to the
+    dashboard for their role with a one-minute single-use code. Targets come only from APP_URLS."""
+    user = payload["user"]
+    target = app_for_role(user["role"])
+    if target == app_key:
+        store_session(request, payload)
+        return next_url if next_url.startswith("/") and not next_url.startswith("//") else "/"
+    try:
+        code = Api(payload["access_token"]).post("/auth/handoff")["code"]
+        return f"{APP_URLS[target]}/auth/continue?" + urlencode({"code": code})
+    except ApiError:  # fall back to that dashboard's login page with the email filled in
+        return f"{APP_URLS[target]}/login?" + urlencode({"identifier": user.get("email") or "", "switched": target})
+
+
+_providers_cache: dict = {"at": 0.0, "value": None}
+
+
+def signin_providers() -> dict:
+    """Which sign-in buttons to show (asked from the API, cached for a minute)."""
+    import time
+
+    if _providers_cache["value"] is None or time.time() - _providers_cache["at"] > 60:
+        try:
+            _providers_cache["value"] = Api().get("/auth/providers")
+        except (ApiError, httpx.HTTPError):
+            return {"google": {"enabled": False}, "firebase_email_link": {"enabled": False}, "sso": {"enabled": False}}
+        _providers_cache["at"] = time.time()
+    return _providers_cache["value"]
 
 
 class ApiError(Exception):
@@ -137,7 +161,8 @@ def make_app(name: str, template_dir: Path, accent: str) -> tuple[FastAPI, Jinja
     app.mount("/static", StaticFiles(directory=SHARED_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=[template_dir, SHARED_DIR / "templates"])
     templates.env.filters.update(inr=inr, dt=dt, nice=nice)
-    templates.env.globals.update(PUBLIC_API_URL=PUBLIC_API_URL, APP_ACCENT=accent, APP_NAME=name)
+    templates.env.globals.update(PUBLIC_API_URL=PUBLIC_API_URL, APP_ACCENT=accent, APP_NAME=name,
+                                 signin_providers=signin_providers)
     return app, templates
 
 

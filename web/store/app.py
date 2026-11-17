@@ -8,9 +8,11 @@ from pathlib import Path
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse
 
-from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session, to_role_app
+from web.shared.signin import add_signin_routes
+from web.shared import Api, ApiError, api_for, back, flash, login_required, make_app, render, store_session, finish_login
 
 app, templates = make_app("FreshFlow Store Ops", Path(__file__).parent / "templates", "store")
+add_signin_routes(app, templates, "store")  # Google button, email magic link, SSO
 STAFF = {"owner", "store_manager", "floor_manager", "worker"}
 MANAGERS = {"owner", "store_manager"}
 SUPERVISORS = MANAGERS | {"floor_manager"}
@@ -65,10 +67,7 @@ async def login(request: Request, identifier: str = Form(...), password: str = F
     except ApiError as e:
         flash(request, str(e), "error")
         return RedirectResponse("/login", status_code=303)
-    if r["user"]["role"] not in STAFF:  # shopper / admin account → their own site
-        return to_role_app(identifier, r["user"]["role"])
-    store_session(request, r)
-    return RedirectResponse(next or "/", status_code=303)
+    return RedirectResponse(finish_login(request, r, "store", next or "/"), status_code=303)
 
 
 @app.get("/logout")

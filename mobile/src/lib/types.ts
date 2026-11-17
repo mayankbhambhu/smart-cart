@@ -3,6 +3,7 @@ export type User = {
   dietary_preferences: string[]; default_address: string | null; preferred_store_id: number | null;
   store_id: number | null; must_change_password: boolean; employee_code?: string | null;
 };
+export type TokenOut = { access_token: string; user: User };
 export type Store = { id: number; name: string; address: string; city: string; latitude: number; longitude: number;
   opens_at: number; closes_at: number; distance_km?: number | null };
 export type Product = { id: number; name: string; brand: string; unit: string; price: number; mrp: number; category_id: number;

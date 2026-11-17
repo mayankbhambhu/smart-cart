@@ -17,4 +17,8 @@ const envUrl = fromEnv && !/\.x(\.|:|$)/i.test(fromEnv) ? fromEnv : undefined;
 
 export const API_URL = envUrl ?? apiFromDevServer() ?? extra.apiUrl ?? "http://localhost:8000";
 export const STRIPE_KEY = process.env.EXPO_PUBLIC_STRIPE_KEY ?? extra.stripePublishableKey ?? "";
-export const GOOGLE_IDS = extra.googleClientIds ?? {};
+export const GOOGLE_IDS = {
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || extra.googleClientIds?.ios || "",
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || extra.googleClientIds?.android || "",
+  web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || extra.googleClientIds?.web || "",
+};

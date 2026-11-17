@@ -64,6 +64,23 @@ class OTPCode(Base):
     used: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class LoginCode(Base):
+    """Single-use, short-lived code. purpose = "sso_state" (SSO round trip; payload holds the
+    PKCE verifier, nonce and return URL) or "login" (exchanged once for an access token).
+    Only a SHA-256 hash of the code is stored."""
+
+    __tablename__ = "login_codes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    purpose: Mapped[str] = mapped_column(String(20))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    payload: Mapped[dict | None] = mapped_column(JSON)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class PaymentMethod(Timestamped, Base):
     """A saved, tokenised payment method. Card numbers are never stored, only the
     gateway's token (e.g. Stripe PaymentMethod id) plus display info."""

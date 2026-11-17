@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth"><div class="card">
+  <div class="logo" style="padding-left:0"><i>F</i><span>FreshFlow<small>Email sign-in link</small></span></div>
+  <div id="status" class="flash ok">Signing you in…</div>
+  <form id="confirm" class="stack" style="display:none">
+    <div class="field"><label>Confirm the email address the link was sent to</label><input id="email" type="email" required></div>
+    <button class="btn block">Continue</button>
+  </form>
+  <p class="muted" style="font-size:.85rem;margin-top:12px"><a href="/login">Back to sign in</a></p>
+</div></div>
+{% endblock %}
+{% block scripts %}
+{% set p = signin_providers() %}
+<script type="module">
+const status = (t, kind) => { const s = document.getElementById('status'); s.className = 'flash ' + (kind || 'ok'); s.textContent = t; };
+const appUrl = {{ app_url|tojson }};
+if (appUrl) {
+  // Opened on the phone: hand the whole link to the app, which finishes the sign-in itself.
+  status('Opening the FreshFlow app…');
+  location.replace(appUrl + (appUrl.includes('?') ? '&' : '?') + 'link=' + encodeURIComponent(location.href));
+} else {
+  {% if p.firebase_email_link.enabled %}
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const { getAuth, isSignInWithEmailLink, signInWithEmailLink } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  const auth = getAuth(initializeApp({{ p.firebase_email_link.config|tojson }}));
+  const finish = async (email) => {
+    try {
+      const cred = await signInWithEmailLink(auth, email, location.href);
+      const idToken = await cred.user.getIdToken();
+      try { localStorage.removeItem('ffEmailForSignIn'); } catch (e) {}
+      const r = await fetch('/auth/firebase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_token: idToken }) });
+      const j = await r.json();
+      if (j.redirect) location.replace(j.redirect); else status(j.error || 'Sign-in failed', 'error');
+    } catch (e) { status(e.message, 'error'); }
+  };
+  if (!isSignInWithEmailLink(auth, location.href)) {
+    status('This sign-in link is invalid or has expired. Request a new one.', 'error');
+  } else {
+    let email = null; try { email = localStorage.getItem('ffEmailForSignIn'); } catch (e) {}
+    if (email) finish(email);
+    else {  // opened on a different device/browser: ask which email (Firebase requires it)
+      status('One more step', 'ok');
+      const f = document.getElementById('confirm'); f.style.display = 'block';
+      f.addEventListener('submit', (ev) => { ev.preventDefault(); finish(document.getElementById('email').value.trim()); });
+    }
+  }
+  {% else %}
+  status('Email-link sign-in is not set up on this server.', 'error');
+  {% endif %}
+}
+</script>
+{% endblock %}

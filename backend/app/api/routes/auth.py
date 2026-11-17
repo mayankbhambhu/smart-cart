@@ -1,8 +1,12 @@
-"""Authentication & customer profile: email, phone OTP, Google, Apple."""
+"""Authentication & profile: email, phone OTP, Google, Apple, Firebase email link, single sign-on."""
 import secrets
 from datetime import timedelta
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -14,7 +18,9 @@ from app.models import Notification, OTPCode, PaymentMethod, User
 from app.models._mixins import utcnow
 from app.schemas import (ChangePasswordIn, LoginIn, OTPRequestIn, OTPVerifyIn, PaymentMethodIn,
                          PaymentMethodOut, ProfileUpdateIn, RegisterIn, SocialLoginIn, TokenOut, UserOut)
-from app.services.auth_providers import send_sms, verify_apple_identity_token, verify_google_id_token
+from app.services import login_codes, sso
+from app.services.auth_providers import (send_sms, verify_apple_identity_token, verify_firebase_id_token,
+                                         verify_google_id_token)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 me_router = APIRouter(prefix="/me", tags=["profile"])
@@ -84,17 +90,52 @@ def verify_otp(data: OTPVerifyIn, db: Session = Depends(get_db)):
     return _token(user)
 
 
-def _social(db: Session, provider: str, info: dict, full_name: str | None) -> TokenOut:
+def _resolve_user(db: Session, provider: str, info: dict, full_name: str | None, allow_create: bool) -> User:
+    """Find the account for a verified external identity. An existing account is only matched by email
+    when the provider says the email is verified; removed (inactive) accounts are refused."""
+    email = (info.get("email") or "").strip().lower() or None
     user = db.query(User).filter(User.auth_provider == provider, User.provider_subject == info["sub"]).first()
-    if not user and info.get("email"):
-        user = db.query(User).filter(User.email == info["email"].lower()).first()  # link existing account
+    if not user and email:
+        if not info.get("email_verified"):
+            raise HTTPException(401, "This account's email address isn't verified with the provider")
+        user = db.query(User).filter(User.email == email).first()
+    if user and not user.is_active:
+        raise HTTPException(403, "This account has been deactivated")
     if not user:
-        user = User(email=(info.get("email") or "").lower() or None, full_name=full_name or info.get("name", ""),
-                    auth_provider=provider)
+        if not allow_create:
+            raise HTTPException(403, f"There is no account for {email or 'this sign-in'}. Ask your administrator.")
+        # New sign-ups through a provider are always shoppers; staff accounts come from the approval chain.
+        user = User(email=email, full_name=full_name or info.get("name", ""), auth_provider=provider)
         db.add(user)
-    user.provider_subject = info["sub"]
+    if user.auth_provider == provider or not user.provider_subject:
+        user.provider_subject = info["sub"]
+    db.flush()
+    return user
+
+
+def _social(db: Session, provider: str, info: dict, full_name: str | None, allow_create: bool = True) -> TokenOut:
+    user = _resolve_user(db, provider, info, full_name, allow_create)
     db.commit()
     return _token(user)
+
+
+@router.get("/providers")
+def providers():
+    """Which sign-in options are switched on, plus the public config the apps need to show them."""
+    fb_on = bool(settings.FIREBASE_PROJECT_ID and settings.FIREBASE_API_KEY)
+    return {
+        "password": {"enabled": True},
+        "phone_otp": {"enabled": True},
+        "google": {"enabled": bool(settings.google_audiences), "web_client_id": settings.GOOGLE_WEB_CLIENT_ID or None},
+        "apple": {"enabled": bool(settings.APPLE_BUNDLE_IDS)},
+        "firebase_email_link": {
+            "enabled": fb_on,
+            "config": {"apiKey": settings.FIREBASE_API_KEY, "authDomain": settings.FIREBASE_AUTH_DOMAIN or
+                       f"{settings.FIREBASE_PROJECT_ID}.firebaseapp.com", "projectId": settings.FIREBASE_PROJECT_ID} if fb_on else None,
+            "continue_url": settings.EMAIL_LINK_CONTINUE_URL,
+        },
+        "sso": {"enabled": sso.enabled(), "label": settings.OIDC_LABEL},
+    }
 
 
 @router.post("/google", response_model=TokenOut)
@@ -105,6 +146,76 @@ def google_login(data: SocialLoginIn, db: Session = Depends(get_db)):
 @router.post("/apple", response_model=TokenOut)
 def apple_login(data: SocialLoginIn, db: Session = Depends(get_db)):
     return _social(db, "apple", verify_apple_identity_token(data.id_token), data.full_name)
+
+
+@router.post("/firebase", response_model=TokenOut)
+def firebase_login(data: SocialLoginIn, db: Session = Depends(get_db)):
+    """Firebase email-link ("magic link") sign-in: the app sends the Firebase ID token it received."""
+    return _social(db, "firebase", verify_firebase_id_token(data.id_token), data.full_name)
+
+
+# ---- single sign-on (OpenID Connect) --------------------------------------------------
+class CodeIn(BaseModel):
+    code: str
+
+
+def _with_params(url: str, params: dict) -> RedirectResponse:
+    return RedirectResponse(url + ("&" if "?" in url else "?") + urlencode(params), status_code=302)
+
+
+@router.get("/sso/start")
+def sso_start(redirect: str, db: Session = Depends(get_db)):
+    """Begin SSO. `redirect` is where to return (a dashboard or the app) and must be on the allow-list."""
+    if not sso.allowed_redirect(redirect):
+        raise HTTPException(400, "This return address is not allowed")
+    verifier, challenge = sso.new_pkce()
+    nonce = secrets.token_urlsafe(16)
+    state = login_codes.issue(db, "sso_state", payload={"verifier": verifier, "nonce": nonce, "redirect": redirect},
+                              ttl_seconds=600)
+    url = sso.authorize_url(state, nonce, challenge)
+    db.commit()
+    return RedirectResponse(url, status_code=302)
+
+
+@router.get("/sso/callback")
+def sso_callback(state: str, code: str | None = None, error: str | None = None,
+                 error_description: str | None = None, db: Session = Depends(get_db)):
+    st = login_codes.redeem(db, state, "sso_state")
+    back = st.payload["redirect"]
+    if error or not code:
+        db.commit()
+        return _with_params(back, {"error": error_description or error or "Sign-in was cancelled"})
+    try:
+        tokens = sso.exchange_code(code, st.payload["verifier"])
+        info = sso.verify_id_token(tokens["id_token"], st.payload["nonce"])
+        user = _resolve_user(db, "sso", info, None, allow_create=False)  # existing accounts only
+    except HTTPException as exc:
+        db.commit()
+        return _with_params(back, {"error": exc.detail})
+    one_time = login_codes.issue(db, "login", user_id=user.id)
+    db.commit()
+    # Only a short-lived single-use code travels in the URL, never the access token.
+    return _with_params(back, {"code": one_time})
+
+
+@router.post("/exchange", response_model=TokenOut)
+def exchange(data: CodeIn, db: Session = Depends(get_db)):
+    """Swap a single-use code (from SSO or a hand-off) for an access token."""
+    row = login_codes.redeem(db, data.code, "login")
+    user = db.get(User, row.user_id)
+    if not user or not user.is_active:
+        db.commit()
+        raise HTTPException(403, "This account has been deactivated")
+    db.commit()
+    return _token(user)
+
+
+@router.post("/handoff")
+def handoff(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A one-minute single-use code so a signed-in user can be moved to the app for their role."""
+    code = login_codes.issue(db, "login", user_id=user.id, ttl_seconds=60)
+    db.commit()
+    return {"code": code}
 
 
 # ---- Profile -----------------------------------------------------------------------

@@ -1,19 +1,19 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
-import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
-import { Button, Card, H1, Input, Muted, Row, s } from "@/components/ui";
+import { GoogleButton } from "@/components/GoogleButton";
+import { Button, Card, H1, H2, Input, Muted, Row, s } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { API_URL, GOOGLE_IDS } from "@/lib/config";
-import { APP_LABEL, appFor, homeHref, ROLE_LABEL } from "@/lib/roles";
+import { sendMagicLink } from "@/lib/firebase";
+import { completeSignIn, fetchProviders, type Providers, signInWithSso } from "@/lib/signin";
 import { colors } from "@/lib/theme";
-import type { User } from "@/lib/types";
+import type { TokenOut } from "@/lib/types";
 
 WebBrowser.maybeCompleteAuthSession();
-type TokenOut = { access_token: string; user: User };
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -22,6 +22,13 @@ export default function Login() {
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
+  const [providers, setProviders] = useState<Providers | null>(null);
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicSent, setMagicSent] = useState<string | null>(null);
+  useEffect(() => { fetchProviders().then(setProviders).catch(() => setProviders(null)); }, []);
+  const googleReady = !!providers?.google.enabled && !!(GOOGLE_IDS.web || GOOGLE_IDS.ios || GOOGLE_IDS.android);
+  const notSetUp = (what: string, settings: string) =>
+    Alert.alert(`${what} isn't set up yet`, `Add ${settings} to the backend settings (see README → Sign-in options).`);
 
   const [, googleResp, googlePrompt] = Google.useIdTokenAuthRequest({
     iosClientId: GOOGLE_IDS.ios || undefined, androidClientId: GOOGLE_IDS.android || undefined,
@@ -34,15 +41,7 @@ export default function Login() {
 
   async function run(fn: () => Promise<TokenOut>) {
     setBusy(true);
-    try {
-      const payload = await fn();
-      await signIn(payload);
-      // The role stored on the account decides which app opens.
-      const u = payload.user;
-      if (u.must_change_password) return router.replace("/change-password");
-      if (appFor(u.role) !== "shopper") Alert.alert(`Welcome, ${u.full_name.split(" ")[0] || "there"}`, `Signed in as ${ROLE_LABEL[u.role] ?? u.role} · opening ${APP_LABEL[appFor(u.role)]}`);
-      router.replace(homeHref(u.role));
-    }
+    try { await completeSignIn(signIn, await fn()); }  // the account's role decides which app opens
     catch (e) { Alert.alert("Sign in failed", (e as Error).message); }
     finally { setBusy(false); }
   }
@@ -54,6 +53,16 @@ export default function Login() {
       setOtpSent(true);
       if (r.dev_code) Alert.alert("Development mode", `Your code is ${r.dev_code}`);
     } catch (e) { Alert.alert("OTP", (e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  async function emailMeALink() {
+    const cfg = providers?.firebase_email_link;
+    if (!cfg?.enabled || !cfg.config) return notSetUp("Email sign-in links", "the FIREBASE_* settings");
+    if (!/^\S+@\S+\.\S+$/.test(magicEmail.trim())) return Alert.alert("Email link", "Enter your email address.");
+    setBusy(true);
+    try { await sendMagicLink(cfg.config, cfg.continue_url, magicEmail.trim()); setMagicSent(magicEmail.trim()); }
+    catch (e) { Alert.alert("Email link", (e as Error).message); }
     finally { setBusy(false); }
   }
 
@@ -101,7 +110,22 @@ export default function Login() {
             <Button title="Create account" loading={busy} onPress={() => run(() => api.post("/auth/register", { full_name: f.full_name, email: f.identifier, password: f.password }))} />
           </View>}
         </Card>
-        <Button title="Continue with Google" variant="secondary" onPress={() => googlePrompt()} disabled={!GOOGLE_IDS.web && !GOOGLE_IDS.ios && !GOOGLE_IDS.android} style={{ marginBottom: 10 }} />
+        <View style={{ gap: 10, marginBottom: 10 }}>
+          <GoogleButton disabled={!googleReady} onPress={() => (googleReady ? googlePrompt() : notSetUp("Google sign-in", "GOOGLE_WEB_CLIENT_ID and the app's Google client IDs"))} />
+          <Button variant="secondary" title={providers?.sso.enabled ? `🔐 ${providers.sso.label}` : "🔐 Sign in with SSO"}
+            onPress={() => (providers?.sso.enabled ? run(signInWithSso) : notSetUp("Single sign-on", "the OIDC_* settings"))} />
+        </View>
+        <Card>
+          <H2>✉️ Email me a sign-in link</H2>
+          {magicSent ? <>
+            <Muted>We sent a link to {magicSent}. Open it on this phone to sign in. No password needed.</Muted>
+            <Button small variant="ghost" title="Use a different email" onPress={() => setMagicSent(null)} />
+          </> : <>
+            <Input placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" value={magicEmail} onChangeText={setMagicEmail} />
+            <Button title="Send link" variant="secondary" loading={busy} style={{ marginTop: 8 }} onPress={emailMeALink}
+              disabled={!providers?.firebase_email_link.enabled} />
+          </>}
+        </Card>
         {Platform.OS === "ios" && <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={12} style={{ height: 48 }} onPress={apple} />}

@@ -182,7 +182,47 @@ Everyone signs in on the same login screen. The **role stored on the account** d
 | `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`mobile/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (8002) |
 | `admin` | **Admin** (`mobile/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (8003) |
 
-The routing lives in `mobile/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. On the websites, signing in at the wrong dashboard sends you to the right one with your email filled in (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
+The routing lives in `mobile/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. On the websites, signing in at the wrong dashboard moves you to the right one, already signed in, using a one-minute single-use code (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
+
+## Sign-in options
+
+The login screen (phone app and all three websites) offers: **email + password**, **phone OTP**,
+**Sign in with Google**, **Email me a sign-in link** (Firebase magic link), **single sign-on (SSO)**
+and, on iPhone, **Sign in with Apple**. Each button switches on as soon as its settings are filled in
+(`GET /auth/providers` tells the apps what is enabled); until then it shows "not set up". Whatever
+the method, the **role on the account** still decides which app opens.
+
+| Method | Who can use it | Backend settings |
+|---|---|---|
+| Google button | anyone; links to an existing account only if Google says the email is verified | `GOOGLE_WEB_CLIENT_ID` (+ `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` for the phone app) |
+| Email magic link (Firebase) | anyone; a new email becomes a shopper account | `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `EMAIL_LINK_CONTINUE_URL` |
+| SSO (OpenID Connect) | **existing accounts only** (staff are still created through the approval chain) | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `API_PUBLIC_URL`, `SSO_ALLOWED_REDIRECTS` |
+
+Removed (deactivated) employees are refused by every method.
+
+**Google:** in Google Cloud Console → *APIs & Services → Credentials*, create an OAuth client of type
+*Web application*. Add each website's address (e.g. `http://localhost:8001`) under *Authorized
+JavaScript origins*. For the phone app also create iOS and Android clients. Put the web one in
+`GOOGLE_WEB_CLIENT_ID`, and give the app its IDs through `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`,
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`. Google sign-in on the
+phone needs a development build (`npx expo run:android` / `run:ios`); it does not run inside Expo Go.
+
+**Email magic link:** in the Firebase console create a project, add a *Web app* (copy its `apiKey`,
+`authDomain`, `projectId`), then *Authentication → Sign-in method → Email/Password* → enable
+**Email link (passwordless sign-in)**. Under *Authentication → Settings → Authorized domains* add the
+domain of the page in `EMAIL_LINK_CONTINUE_URL` (`localhost` is allowed by default). The link opens
+that page: on a computer it finishes sign-in there; when the request came from the phone app it
+forwards the link into the app. **To use it from a phone, that page must be reachable from the
+phone on an authorized domain.** Use the deployed customer site, or a tunnel to it; a LAN IP
+address can't be authorized.
+
+**SSO:** register an app with your identity provider (Microsoft Entra ID, Google Workspace, Okta,
+Auth0, Keycloak...). Set its redirect URI to `{API_PUBLIC_URL}/auth/sso/callback` and copy the
+issuer URL, client ID and secret into the settings. `OIDC_LABEL` is the button text (e.g. "Sign in
+with Microsoft"). The flow uses the authorization code with PKCE, a one-time state and a nonce, and
+checks the ID token signature, issuer and audience. Only a 2-minute single-use code is passed back
+to the website or app, never the session token. Return addresses must start with an entry in
+`SSO_ALLOWED_REDIRECTS`; remove `exp://` (Expo Go) in production.
 
 ## Run it locally
 
