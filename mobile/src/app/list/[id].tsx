@@ -3,7 +3,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { Button, Card, Input, Muted, Row, s, SummaryLine } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { useLive } from "@/lib/live";
 import { colors, inr } from "@/lib/theme";
@@ -18,12 +18,12 @@ export default function ListDetail() {
   const [feed, setFeed] = useState<string[]>([]);
 
   const load = useCallback(async () => setList(await api.get<ShoppingList>(`/lists/${id}`, { store_id: cart?.store_id })), [id, cart?.store_id]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load().catch(logError); }, [load]);
   useLive([`list:${id}`], (e) => {
     if (!e.channel.startsWith("list:")) return;
     Haptics.selectionAsync();
     setFeed((f) => [`${e.data.actor} · ${e.event.replace("_", " ")}${e.data.item ? `: ${e.data.item}` : ""}`, ...f].slice(0, 5));
-    load();
+    load().catch(logError);
   });
 
   if (!list) return null;

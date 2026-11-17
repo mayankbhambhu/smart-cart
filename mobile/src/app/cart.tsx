@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, Text } from "react-native";
 import { Badge, Button, Card, H2, Input, Muted, Row, s, SummaryLine } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { pay } from "@/lib/payments";
@@ -29,7 +29,7 @@ export default function CartScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (cart?.mode === "pickup") api.get<Slot[]>(`/stores/${cart.store_id}/pickup-slots`).then((s) => { setSlots(s); setSlot(s.find((x) => x.available)?.start ?? null); });
+    if (cart?.mode === "pickup") api.get<Slot[]>(`/stores/${cart.store_id}/pickup-slots`).then((s) => { setSlots(s); setSlot(s.find((x) => x.available)?.start ?? null); }).catch(logError);
   }, [cart?.mode, cart?.store_id]);
 
   if (!cart) return null;

@@ -2,14 +2,14 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Text } from "react-native";
 import { Badge, Button, Card, H2, Input, Muted, Row, s } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import type { ListSummary, ShoppingList } from "@/lib/types";
 
 export default function Lists() {
   const [lists, setLists] = useState<ListSummary[]>([]);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const load = useCallback(() => { api.get<ListSummary[]>("/lists").then(setLists); }, []);
+  const load = useCallback(() => { api.get<ListSummary[]>("/lists").then(setLists).catch(logError); }, []);
   useFocusEffect(load);
 
   const create = async () => {

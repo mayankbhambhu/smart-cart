@@ -2,7 +2,7 @@ import * as Location from "expo-location";
 import { useEffect, useState } from "react";
 import { Linking, ScrollView, Text } from "react-native";
 import { Badge, Button, Card, H2, Input, Muted, Row, s } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/theme";
 import type { Store } from "@/lib/types";
@@ -24,7 +24,7 @@ export default function Stores() {
       setCoords({ lat: p.coords.latitude, lng: p.coords.longitude });
     }
   })(); }, []);
-  useEffect(() => { api.get<Store[]>("/stores", coords ?? {}).then(setStores); }, [coords]);
+  useEffect(() => { api.get<Store[]>("/stores", coords ?? {}).then(setStores).catch(logError); }, [coords]);
 
   const check = async () => { if (q.trim()) setStock(await api.get<StockRow[]>("/stock-check", { q, ...(coords ?? {}) })); };
 

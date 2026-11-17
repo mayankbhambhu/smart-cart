@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { ProductCard } from "@/components/ProductCard";
 import { Button, Input, Row, s } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { colors, inr } from "@/lib/theme";
@@ -22,7 +22,7 @@ export default function Shop() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { api.get<Category[]>("/categories").then(setCats); api.get<Store[]>("/stores").then(setStores); }, []);
+  useEffect(() => { api.get<Category[]>("/categories").then(setCats).catch(logError); api.get<Store[]>("/stores").then(setStores).catch(logError); }, []);
   useFocusEffect(useCallback(() => { refresh().catch(() => {}); }, [refresh]));
 
   const load = useCallback(async () => {

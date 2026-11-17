@@ -2,7 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text } from "react-native";
 import { Badge, Card, Muted, Row, s } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { inr, nice, when } from "@/lib/theme";
 import type { Order } from "@/lib/types";
 
@@ -11,7 +11,7 @@ const tone = (st: string) => (["completed", "paid"].includes(st) ? "ok" : st ===
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
-  const load = useCallback(() => { setLoading(true); api.get<Order[]>("/orders").then(setOrders).finally(() => setLoading(false)); }, []);
+  const load = useCallback(() => { setLoading(true); api.get<Order[]>("/orders").then(setOrders).catch(logError).finally(() => setLoading(false)); }, []);
   useFocusEffect(load);
   return (
     <FlatList style={s.screen} contentContainerStyle={s.pad} data={orders} keyExtractor={(o) => String(o.id)}

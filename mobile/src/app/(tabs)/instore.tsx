@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { StoreMap } from "@/components/StoreMap";
 import { Badge, Button, Card, H1, H2, Input, Muted, Row, s, SummaryLine } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { useLive } from "@/lib/live";
 import { colors, inr } from "@/lib/theme";
@@ -25,14 +25,14 @@ export default function InStore() {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    api.get<Store[]>("/stores").then(setStores);
+    api.get<Store[]>("/stores").then(setStores).catch(logError);
     api.get<ListSummary[]>("/lists").then((ls) => {
       setLists(ls);
       const lid = listId ?? ls[0]?.id ?? null;
       setListId(lid);
-      refresh().then(() => {});
-      if (cart?.mode === "instore") loadRoute(lid, cart.store_id);
-    });
+      refresh().catch(logError);
+      if (cart?.mode === "instore") loadRoute(lid, cart.store_id).catch(logError);
+    }).catch(logError);
   }, [cart?.mode, cart?.store_id]));
 
   // Family member adds "Milk" at home -> route re-plans live in the store.
@@ -40,7 +40,7 @@ export default function InStore() {
     if (!e.channel.startsWith("list:")) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (e.event === "item_added") Alert.alert("Family list updated", `${e.data.actor} added ${e.data.item}`);
-    loadRoute(listId, cart?.store_id);
+    loadRoute(listId, cart?.store_id).catch(logError);
   });
 
   const pick = async (lid: number, itemId: number, productId: number, quantity: number) => {
@@ -48,7 +48,7 @@ export default function InStore() {
       replace(await api.post<Cart>("/cart/items", { product_id: productId, quantity }));
       await api.patch(`/lists/${lid}/items/${itemId}`, { checked: true });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      loadRoute(lid, cart?.store_id);
+      await loadRoute(lid, cart?.store_id);
     } catch (e) { Alert.alert("Could not add", (e as Error).message); }
   };
 
@@ -84,7 +84,7 @@ export default function InStore() {
       <H1>{cart.store_name}</H1>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
         {lists.map((l) => (
-          <Pressable key={l.id} onPress={() => { setListId(l.id); loadRoute(l.id, cart.store_id); }}
+          <Pressable key={l.id} onPress={() => { setListId(l.id); loadRoute(l.id, cart.store_id).catch(logError); }}
             style={{ marginRight: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: l.id === listId ? colors.brand : colors.surface, borderWidth: 1, borderColor: colors.line }}>
             <Text style={{ color: l.id === listId ? "#fff" : colors.ink2, fontWeight: "700" }}>📝 {l.name}</Text></Pressable>))}
       </ScrollView>

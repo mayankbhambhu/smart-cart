@@ -2,7 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Text } from "react-native";
 import { Button, Card, H2, Input, Muted, Row, s } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { colors } from "@/lib/theme";
 import type { User } from "@/lib/types";
@@ -16,7 +16,7 @@ export default function Profile() {
   const [diets, setDiets] = useState<string[]>(user?.dietary_preferences ?? []);
   const [methods, setMethods] = useState<Method[]>([]);
   const [newMethod, setNewMethod] = useState({ kind: "upi", label: "" });
-  const loadMethods = useCallback(() => { api.get<Method[]>("/me/payment-methods").then(setMethods); }, []);
+  const loadMethods = useCallback(() => { api.get<Method[]>("/me/payment-methods").then(setMethods).catch(logError); }, []);
   useFocusEffect(loadMethods);
 
   const save = async () => {

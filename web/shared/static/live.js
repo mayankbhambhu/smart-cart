@@ -20,7 +20,9 @@ window.FF = (function () {
       ws.onclose = () => { dot && dot.classList.remove('on'); setTimeout(connect, retry = Math.min(retry * 2, 15000)); };
       ws.onmessage = (m) => {
         if (m.data === 'pong') return;
-        const evt = JSON.parse(m.data);
+        let evt;
+        try { evt = JSON.parse(m.data); } catch (e) { return; }
+        if (typeof evt.channel !== 'string') return;  // e.g. the initial "subscribed" frame
         if (evt.event === 'notification') toast(evt.data.title, evt.data.body);
         opts.on && opts.on(evt);
       };

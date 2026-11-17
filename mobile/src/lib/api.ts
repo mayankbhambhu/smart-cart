@@ -25,11 +25,16 @@ export class ApiError extends Error {
 async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>): Promise<T> {
   const qs = params ? "?" + Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join("&") : "";
-  const res = await fetch(API_URL + path + qs, {
-    method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(API_URL + path + qs, {
+      method,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, `Can't reach the SmartCart server at ${API_URL}. Check that the backend is running (./scripts/dev.sh) and that this phone is on the same Wi-Fi as the computer.`);
+  }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -39,6 +44,9 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
   }
   return data as T;
 }
+
+/** For background loads: log the problem instead of raising an unhandled promise rejection. */
+export const logError = (e: unknown) => console.warn((e as Error)?.message ?? e);
 
 export const api = {
   get: <T>(path: string, params?: Record<string, unknown>) => request<T>("GET", path, undefined, params),

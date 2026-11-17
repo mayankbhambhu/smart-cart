@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import { QRCode } from "@/components/QRCode";
 import { Badge, Button, Card, H2, Muted, s, SummaryLine } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, logError } from "@/lib/api";
 import { colors, inr, nice, when } from "@/lib/theme";
 import type { Order } from "@/lib/types";
 
@@ -11,7 +11,7 @@ import type { Order } from "@/lib/types";
 export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [o, setO] = useState<Order | null>(null);
-  const load = useCallback(() => { api.get<Order>(`/orders/${id}`).then(setO); }, [id]);
+  const load = useCallback(() => { api.get<Order>(`/orders/${id}`).then(setO).catch(logError); }, [id]);
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
   if (!o) return null;
   const showReceipt = o.receipt_code && o.fulfilment !== "delivery";
