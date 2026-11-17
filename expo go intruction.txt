@@ -8,3 +8,9 @@ Scan the QR code in Expo Go.
 Restart Terminal 2 with 
 npx expo start -c 
 and reload the app.
+
+
+only for me
+SMSGATE_USERNAME=sms
+SMSGATE_PASSWORD=LH1mMOBp
+SMSGATE_URL=http://192.168.1.5:8080/message
