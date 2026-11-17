@@ -104,17 +104,38 @@ def check_verification(phone: str, code: str) -> bool:
     return resp.json().get("status") == "approved"
 
 
+def smsgate_enabled() -> bool:
+    return bool(settings.SMSGATE_USERNAME and settings.SMSGATE_PASSWORD and settings.SMSGATE_URL)
+
+
+def _send_via_smsgate(phone: str, body: str) -> None:
+    """SMS Gateway for Android: your own phone sends the text from its SIM (free with an SMS pack)."""
+    try:
+        resp = requests.post(settings.SMSGATE_URL,
+                             json={"textMessage": {"text": body}, "phoneNumbers": [phone]},
+                             auth=(settings.SMSGATE_USERNAME, settings.SMSGATE_PASSWORD), timeout=15)
+    except requests.RequestException as exc:
+        raise HTTPException(502, f"Could not reach the SMS gateway phone: {exc.__class__.__name__}")
+    if resp.status_code == 401:
+        raise HTTPException(502, "Could not send the SMS: the SMS gateway username or password is wrong")
+    if not resp.ok:
+        raise HTTPException(502, f"Could not send the SMS: gateway said {resp.status_code} {resp.text[:200]}")
+
+
 def send_sms(phone: str, body: str) -> bool:
-    """Sends via Twilio when configured; otherwise logs (development)."""
-    if not settings.TWILIO_ACCOUNT_SID:
-        log.warning("SMS to %s: %s  (Twilio not configured, logged only)", phone, body)
-        return False
-    resp = requests.post(
-        f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json",
-        data={"To": phone, "From": settings.TWILIO_FROM_NUMBER, "Body": body},
-        auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN),
-        timeout=10,
-    )
-    if not resp.ok:  # tell the person why, instead of claiming the code was sent
-        raise HTTPException(502, f"Could not send the SMS: {_twilio_error(resp)}")
-    return True
+    """Sends with Twilio (plain SMS) or the Android SMS gateway when configured; otherwise only logs."""
+    if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_FROM_NUMBER:
+        resp = requests.post(
+            f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json",
+            data={"To": phone, "From": settings.TWILIO_FROM_NUMBER, "Body": body},
+            auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN),
+            timeout=10,
+        )
+        if not resp.ok:  # tell the person why, instead of claiming the code was sent
+            raise HTTPException(502, f"Could not send the SMS: {_twilio_error(resp)}")
+        return True
+    if smsgate_enabled():
+        _send_via_smsgate(phone, body)
+        return True
+    log.warning("SMS to %s: %s  (no SMS provider configured, logged only)", phone, body)
+    return False

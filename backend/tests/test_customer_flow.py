@@ -123,6 +123,34 @@ def test_twilio_verify_path(client, monkeypatch):
     assert ok.status_code == 200 and ok.json()["user"]["email"] == "rohan@example.com"
 
 
+def test_android_sms_gateway_path(client, monkeypatch):
+    """The free Android gateway gets the code in a text; the code is not shown on screen."""
+    import re
+
+    from app.core.config import settings
+    from app.services import auth_providers
+
+    calls = []
+
+    class Resp:
+        status_code, ok, text = 202, True, "{}"
+
+    def fake_post(url, json=None, auth=None, timeout=None, **kw):
+        calls.append((url, json, auth))
+        return Resp()
+
+    monkeypatch.setattr(settings, "SMSGATE_USERNAME", "gate-user")
+    monkeypatch.setattr(settings, "SMSGATE_PASSWORD", "gate-pass")
+    monkeypatch.setattr(auth_providers.requests, "post", fake_post)
+    r = client.post("/auth/otp/request", json={"phone": "98333 33333"}).json()
+    assert "dev_code" not in r and len(calls) == 1
+    url, body, auth = calls[0]
+    assert url == settings.SMSGATE_URL and auth == ("gate-user", "gate-pass")
+    assert body["phoneNumbers"] == ["+919833333333"]
+    code = re.search(r"\b(\d{6})\b", body["textMessage"]["text"]).group(1)
+    assert client.post("/auth/otp/verify", json={"phone": "9833333333", "code": code}).status_code == 200
+
+
 def test_otp_refuses_deactivated_accounts(client):
     from app.core.database import SessionLocal
     from app.models import User

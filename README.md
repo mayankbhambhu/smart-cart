@@ -196,7 +196,7 @@ the method, the **role on the account** still decides which app opens.
 |---|---|---|
 | Google button | anyone; links to an existing account only if Google says the email is verified | `GOOGLE_WEB_CLIENT_ID` (+ `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` for the phone app) |
 | Email magic link (Firebase) | anyone; a new email becomes a shopper account | `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `EMAIL_LINK_CONTINUE_URL` |
-| Phone OTP (SMS) | anyone; a new number becomes a shopper account | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` (without them, development mode shows the code on screen) |
+| Phone OTP (SMS) | anyone; a new number becomes a shopper account | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, **or free:** `SMSGATE_USERNAME`, `SMSGATE_PASSWORD` (without any, development mode shows the code on screen) |
 | SSO (OpenID Connect) | **existing accounts only** (staff are still created through the approval chain) | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `API_PUBLIC_URL`, `SSO_ALLOWED_REDIRECTS` |
 
 Removed (deactivated) employees are refused by every method.
@@ -224,6 +224,13 @@ SMS rules, which plain SMS would need you to register for. People can type numbe
 (`98111 11111`, `+91 98111-11111`); they're normalised to `+919811111111`, with
 `PHONE_DEFAULT_COUNTRY_CODE` for 10-digit numbers. A Twilio *trial* account can only text numbers
 you've verified in the Twilio console.
+
+**Free alternative: SMS Gateway for Android.** Install the open-source *SMS Gateway for Android*
+app (sms-gate.app, Android 5+) on a spare Android phone with a SIM and an SMS pack. Turn on *Cloud
+server*, tap *Start*, and copy the username and password it shows into `SMSGATE_USERNAME` and
+`SMSGATE_PASSWORD`. The backend generates the code and the phone texts it from its own SIM. With
+the app's *Local server* instead, also set `SMSGATE_URL=http://<phone-ip>:8080/message` (the phone
+and the backend must be on the same Wi-Fi). Twilio Verify wins if both are configured.
 
 **SSO:** register an app with your identity provider (Microsoft Entra ID, Google Workspace, Okta,
 Auth0, Keycloak...). Set its redirect URI to `{API_PUBLIC_URL}/auth/sso/callback` and copy the
@@ -323,7 +330,7 @@ cd mobile && npx tsc --noEmit
 | PayPal | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | sandbox mock |
 | Google login | `GOOGLE_CLIENT_IDS` (API) + `extra.googleClientIds` (mobile) | button disabled |
 | Apple login | `APPLE_BUNDLE_IDS`, Apple developer account | iOS button errors |
-| Phone OTP SMS | `TWILIO_*` | code shown on screen in DEBUG |
+| Phone OTP SMS | `TWILIO_*` or `SMSGATE_*` (free) | code shown on screen in DEBUG |
 | Production secrets | `SECRET_KEY`, `SESSION_SECRET`, `DEBUG=false`, `CORS_ORIGINS` | insecure defaults |
 
 **Deploy:** push to GitHub, then on Render choose *New → Blueprint* and pick `render.yaml`.

@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     TWILIO_FROM_NUMBER: str = ""  # only for plain SMS (not needed with Verify)
     # Twilio Verify sends and checks the OTP itself (recommended; handles India's DLT SMS rules)
     TWILIO_VERIFY_SERVICE_SID: str = ""  # starts with VA
+    # Free option: the "SMS Gateway for Android" app (sms-gate.app) sends texts from your own phone's SIM.
+    # Cloud mode URL below; for local mode use http://<phone-ip>:8080/message
+    SMSGATE_URL: str = "https://api.sms-gate.app/3rdparty/v1/message"
+    SMSGATE_USERNAME: str = ""
+    SMSGATE_PASSWORD: str = ""
     PHONE_DEFAULT_COUNTRY_CODE: str = "+91"  # added to 10-digit numbers typed without a country code
 
     # Optional Redis for multi-instance websocket fan-out
