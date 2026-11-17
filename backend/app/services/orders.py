@@ -13,8 +13,12 @@ from app.services.notify import notify, notify_roles
 from app.services.pricing import quote_cart
 
 
-def _order_number() -> str:
-    return "FF" + utcnow().strftime("%y%m%d") + secrets.token_hex(3).upper()
+def _order_number(db: Session) -> str:
+    """FF + date + 8 random hex characters (4.3 billion per day), re-drawn in the rare case it's taken."""
+    while True:
+        number = "FF" + utcnow().strftime("%y%m%d") + secrets.token_hex(4).upper()
+        if not db.query(Order.id).filter_by(number=number).first():
+            return number
 
 
 def create_order_from_cart(db: Session, cart: Cart, address: str | None, pickup_slot) -> Order:
@@ -31,7 +35,7 @@ def create_order_from_cart(db: Session, cart: Cart, address: str | None, pickup_
 
     q = quote_cart(db, cart)
     order = Order(
-        number=_order_number(), user_id=cart.user_id, store_id=cart.store_id, fulfilment=cart.mode,
+        number=_order_number(db), user_id=cart.user_id, store_id=cart.store_id, fulfilment=cart.mode,
         subtotal=q.subtotal, discount=q.discount, delivery_fee=q.delivery_fee, tax=q.tax, total=q.total,
         cost_total=q.cost_total, offer_id=q.offer.id if q.offer else None,
         delivery_address=address if cart.mode == "delivery" else None,

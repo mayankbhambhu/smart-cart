@@ -1,7 +1,9 @@
 """Verification of third-party identity tokens (Google, Apple, Firebase) and SMS OTP delivery."""
 import logging
+import re
 
 import jwt
+import requests
 from fastapi import HTTPException
 
 from app.core.config import settings
@@ -60,17 +62,64 @@ def verify_apple_identity_token(token: str) -> dict:
             "email_verified": info.get("email_verified") in (True, "true")}
 
 
+def normalize_phone(raw: str) -> str:
+    """Turn what people type ("98111 11111", "091-9811111111", "+91 98111 11111") into +919811111111."""
+    s = re.sub(r"[\s\-().]", "", raw or "")
+    if s.startswith("00"):
+        s = "+" + s[2:]
+    if not s.startswith("+"):
+        s = s.lstrip("0")
+        cc = settings.PHONE_DEFAULT_COUNTRY_CODE.lstrip("+")
+        s = "+" + (s if len(s) > 10 and s.startswith(cc) else cc + s)
+    if not re.fullmatch(r"\+[1-9]\d{9,14}", s):
+        raise HTTPException(400, "Enter a valid mobile number, e.g. +91 98111 11111")
+    return s
+
+
+def _twilio_error(resp) -> str:
+    try:
+        return resp.json().get("message") or resp.text
+    except ValueError:
+        return resp.text
+
+
+def twilio_verify_enabled() -> bool:
+    return bool(settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_VERIFY_SERVICE_SID)
+
+
+def _verify_url(path: str) -> str:
+    return f"https://verify.twilio.com/v2/Services/{settings.TWILIO_VERIFY_SERVICE_SID}/{path}"
+
+
+def start_verification(phone: str) -> None:
+    """Twilio Verify generates the code and sends the SMS."""
+    resp = requests.post(_verify_url("Verifications"), data={"To": phone, "Channel": "sms"},
+                         auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN), timeout=15)
+    if not resp.ok:
+        raise HTTPException(502, f"Could not send the code: {_twilio_error(resp)}")
+
+
+def check_verification(phone: str, code: str) -> bool:
+    resp = requests.post(_verify_url("VerificationCheck"), data={"To": phone, "Code": code},
+                         auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN), timeout=15)
+    if resp.status_code == 404:  # no pending verification: expired, already used or too many attempts
+        return False
+    if not resp.ok:
+        raise HTTPException(502, f"Could not check the code: {_twilio_error(resp)}")
+    return resp.json().get("status") == "approved"
+
+
 def send_sms(phone: str, body: str) -> bool:
     """Sends via Twilio when configured; otherwise logs (development)."""
     if not settings.TWILIO_ACCOUNT_SID:
         log.warning("SMS to %s: %s  (Twilio not configured, logged only)", phone, body)
         return False
-    import requests
-
     resp = requests.post(
         f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json",
         data={"To": phone, "From": settings.TWILIO_FROM_NUMBER, "Body": body},
         auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN),
         timeout=10,
     )
-    return resp.ok
+    if not resp.ok:  # tell the person why, instead of claiming the code was sent
+        raise HTTPException(502, f"Could not send the SMS: {_twilio_error(resp)}")
+    return True

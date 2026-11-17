@@ -93,3 +93,42 @@ def test_pickup_order_with_offer(client, login):
     assert r.status_code == 200, r.text
     order = client.post("/payments/confirm", json={"order_id": r.json()["order"]["id"]}, headers=h).json()
     assert order["status"] == "preparing" and order["fulfilment"] == "pickup"
+
+
+def test_phone_numbers_are_normalised(client):
+    """10-digit numbers typed without +91, with spaces or dashes, reach the same account."""
+    from app.services.auth_providers import normalize_phone
+
+    for raw in ("9811111111", "98111 11111", "+91 98111-11111", "09811111111", "00919811111111"):
+        assert normalize_phone(raw) == "+919811111111", raw
+    r = client.post("/auth/otp/request", json={"phone": "98111 11111"}).json()
+    assert r["phone"] == "+919811111111"
+    v = client.post("/auth/otp/verify", json={"phone": "9811111111", "code": r["dev_code"]})
+    assert v.status_code == 200 and v.json()["user"]["email"] == "asha@example.com"  # existing account, not a new one
+    assert client.post("/auth/otp/request", json={"phone": "12ab"}).status_code in (400, 422)
+
+
+def test_twilio_verify_path(client, monkeypatch):
+    """With Twilio Verify configured, Twilio sends and checks the code; no code is ever shown."""
+    from app.api.routes import auth as auth_routes
+
+    sent, checks = [], []
+    monkeypatch.setattr(auth_routes, "twilio_verify_enabled", lambda: True)
+    monkeypatch.setattr(auth_routes, "start_verification", lambda phone: sent.append(phone))
+    monkeypatch.setattr(auth_routes, "check_verification", lambda phone, code: checks.append(code) or code == "424242")
+    r = client.post("/auth/otp/request", json={"phone": "9822222222"}).json()
+    assert sent == ["+919822222222"] and "dev_code" not in r
+    assert client.post("/auth/otp/verify", json={"phone": "9822222222", "code": "000000"}).status_code == 401
+    ok = client.post("/auth/otp/verify", json={"phone": "+919822222222", "code": "424242"})
+    assert ok.status_code == 200 and ok.json()["user"]["email"] == "rohan@example.com"
+
+
+def test_otp_refuses_deactivated_accounts(client):
+    from app.core.database import SessionLocal
+    from app.models import User
+
+    with SessionLocal() as db:
+        db.add(User(phone="+919877777777", full_name="Left", is_active=False))
+        db.commit()
+    r = client.post("/auth/otp/request", json={"phone": "9877777777"}).json()
+    assert client.post("/auth/otp/verify", json={"phone": "9877777777", "code": r["dev_code"]}).status_code == 403

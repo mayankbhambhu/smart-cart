@@ -22,7 +22,7 @@ class LoginIn(BaseModel):
 
 
 class OTPRequestIn(BaseModel):
-    phone: str = Field(pattern=r"^\+?[0-9]{10,15}$")
+    phone: str = Field(min_length=10, max_length=20)  # normalised to +<country><number> by the API
 
 
 class OTPVerifyIn(BaseModel):

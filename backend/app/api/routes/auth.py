@@ -19,7 +19,8 @@ from app.models._mixins import utcnow
 from app.schemas import (ChangePasswordIn, LoginIn, OTPRequestIn, OTPVerifyIn, PaymentMethodIn,
                          PaymentMethodOut, ProfileUpdateIn, RegisterIn, SocialLoginIn, TokenOut, UserOut)
 from app.services import login_codes, sso
-from app.services.auth_providers import (send_sms, verify_apple_identity_token, verify_firebase_id_token,
+from app.services.auth_providers import (check_verification, normalize_phone, send_sms, start_verification,
+                                         twilio_verify_enabled, verify_apple_identity_token, verify_firebase_id_token,
                                          verify_google_id_token)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -56,16 +57,22 @@ def login(data: LoginIn, db: Session = Depends(get_db)):
 
 @router.post("/otp/request")
 def request_otp(data: OTPRequestIn, db: Session = Depends(get_db)):
-    recent = db.query(OTPCode).filter(OTPCode.phone == data.phone,
+    phone = normalize_phone(data.phone)
+    recent = db.query(OTPCode).filter(OTPCode.phone == phone,
                                       OTPCode.expires_at > utcnow() + timedelta(minutes=4)).count()
     if recent >= 3:
         raise HTTPException(429, "Too many codes requested. Try again in a minute.")
+    if twilio_verify_enabled():
+        # Twilio Verify makes, sends and checks the code; we only keep a row for rate limiting.
+        start_verification(phone)
+        db.add(OTPCode(phone=phone, code_hash="twilio-verify", expires_at=utcnow() + timedelta(minutes=5)))
+        db.commit()
+        return {"sent": True, "phone": phone}
     code = f"{secrets.randbelow(10**6):06d}"
-    db.add(OTPCode(phone=data.phone, code_hash=hash_otp(data.phone, code),
-                   expires_at=utcnow() + timedelta(minutes=5)))
+    db.add(OTPCode(phone=phone, code_hash=hash_otp(phone, code), expires_at=utcnow() + timedelta(minutes=5)))
     db.commit()
-    delivered = send_sms(data.phone, f"Your {settings.APP_NAME} code is {code}. It expires in 5 minutes.")
-    resp = {"sent": True}
+    delivered = send_sms(phone, f"Your {settings.APP_NAME} code is {code}. It expires in 5 minutes.")
+    resp = {"sent": True, "phone": phone}
     if settings.DEBUG and not delivered:
         resp["dev_code"] = code  # only in development without an SMS provider
     return resp
@@ -73,18 +80,26 @@ def request_otp(data: OTPRequestIn, db: Session = Depends(get_db)):
 
 @router.post("/otp/verify", response_model=TokenOut)
 def verify_otp(data: OTPVerifyIn, db: Session = Depends(get_db)):
-    otp = (db.query(OTPCode).filter(OTPCode.phone == data.phone, OTPCode.used.is_(False),
+    phone = normalize_phone(data.phone)
+    otp = (db.query(OTPCode).filter(OTPCode.phone == phone, OTPCode.used.is_(False),
                                     OTPCode.expires_at > utcnow()).order_by(OTPCode.id.desc()).first())
     if not otp or otp.attempts >= 5:
         raise HTTPException(401, "Code expired. Request a new one.")
-    if otp.code_hash != hash_otp(data.phone, data.code):
+    if otp.code_hash == "twilio-verify":
+        ok = check_verification(phone, data.code)
+    else:
+        ok = otp.code_hash == hash_otp(phone, data.code)
+    if not ok:
         otp.attempts += 1
         db.commit()
         raise HTTPException(401, "Incorrect code")
     otp.used = True
-    user = db.query(User).filter(User.phone == data.phone).first()
-    if not user:
-        user = User(phone=data.phone, full_name=data.full_name or "", auth_provider="phone")
+    user = db.query(User).filter(User.phone == phone).first()
+    if user and not user.is_active:
+        db.commit()
+        raise HTTPException(403, "This account has been deactivated")
+    if not user:  # a new number becomes a shopper account
+        user = User(phone=phone, full_name=data.full_name or "", auth_provider="phone")
         db.add(user)
     db.commit()
     return _token(user)

@@ -196,6 +196,7 @@ the method, the **role on the account** still decides which app opens.
 |---|---|---|
 | Google button | anyone; links to an existing account only if Google says the email is verified | `GOOGLE_WEB_CLIENT_ID` (+ `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` for the phone app) |
 | Email magic link (Firebase) | anyone; a new email becomes a shopper account | `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `EMAIL_LINK_CONTINUE_URL` |
+| Phone OTP (SMS) | anyone; a new number becomes a shopper account | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` (without them, development mode shows the code on screen) |
 | SSO (OpenID Connect) | **existing accounts only** (staff are still created through the approval chain) | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `API_PUBLIC_URL`, `SSO_ALLOWED_REDIRECTS` |
 
 Removed (deactivated) employees are refused by every method.
@@ -215,6 +216,14 @@ that page: on a computer it finishes sign-in there; when the request came from t
 forwards the link into the app. **To use it from a phone, that page must be reachable from the
 phone on an authorized domain.** Use the deployed customer site, or a tunnel to it; a LAN IP
 address can't be authorized.
+
+**Phone OTP by SMS:** create a free Twilio account. In *Verify → Services* create a service with SMS
+switched on, then copy the Account SID, Auth Token and the service's SID (`VA…`) into the settings.
+Twilio Verify makes, sends and checks the code. As far as we know it also takes care of India's DLT
+SMS rules, which plain SMS would need you to register for. People can type numbers any way
+(`98111 11111`, `+91 98111-11111`); they're normalised to `+919811111111`, with
+`PHONE_DEFAULT_COUNTRY_CODE` for 10-digit numbers. A Twilio *trial* account can only text numbers
+you've verified in the Twilio console.
 
 **SSO:** register an app with your identity provider (Microsoft Entra ID, Google Workspace, Okta,
 Auth0, Keycloak...). Set its redirect URI to `{API_PUBLIC_URL}/auth/sso/callback` and copy the

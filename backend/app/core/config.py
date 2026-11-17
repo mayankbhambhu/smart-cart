@@ -59,7 +59,10 @@ class Settings(BaseSettings):
                                   "freshflow://,exp://")
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_FROM_NUMBER: str = ""
+    TWILIO_FROM_NUMBER: str = ""  # only for plain SMS (not needed with Verify)
+    # Twilio Verify sends and checks the OTP itself (recommended; handles India's DLT SMS rules)
+    TWILIO_VERIFY_SERVICE_SID: str = ""  # starts with VA
+    PHONE_DEFAULT_COUNTRY_CODE: str = "+91"  # added to 10-digit numbers typed without a country code
 
     # Optional Redis for multi-instance websocket fan-out
     REDIS_URL: str = ""

@@ -104,6 +104,17 @@ def mkuser(db, name, email, role, store_id=None, wage=None, phone=None, joined=N
     return u
 
 
+_numbers: set[str] = set()
+
+
+def _unique_number(ts) -> str:
+    while True:
+        n = f"FF{ts:%y%m%d}{secrets.token_hex(4).upper()}"
+        if n not in _numbers:
+            _numbers.add(n)
+            return n
+
+
 def seed(db):
     cats = [Category(name=n, icon=i) for n, i in CATEGORIES]
     db.add_all(cats)
@@ -208,7 +219,7 @@ def seed(db):
                 mode = random.choices(["delivery", "pickup", "instore"], weights=[55, 15, 30])[0]
                 fee = 25.0 if mode == "delivery" and subtotal - discount < 199 else 0.0
                 tax = round((subtotal - discount) * 0.05, 2)
-                o = Order(number=f"FF{ts:%y%m%d}{secrets.token_hex(3).upper()}", user_id=random.choice(shoppers).id,
+                o = Order(number=_unique_number(ts), user_id=random.choice(shoppers).id,
                           store_id=store.id, fulfilment=mode, status="completed", subtotal=subtotal,
                           discount=round(discount, 2), delivery_fee=fee, tax=tax,
                           total=round(subtotal - discount + tax + fee, 2),
