@@ -97,7 +97,6 @@ smart-cart/
 ├── scripts/
 │   ├── dev.sh                   # run everything locally (seeds demo data)
 │   └── smoke_test.py            # end-to-end: every page, every role, Scan & Go → gate
-├── docs/                        # Milestone presentations
 │
 ├── backend/                     # ══ BACKEND (Python) ══════════════════════════════════
 │   ├── api/                     # ── the REST + WebSocket API, used by the website AND the app
