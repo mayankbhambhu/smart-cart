@@ -7,8 +7,8 @@ __pycache__/
 .env
 .pytest_cache/
 node_modules/
-mobile/.expo/
-mobile/dist/
-mobile/ios/
-mobile/android/
+app/.expo/
+app/dist/
+app/ios/
+app/android/
 .DS_Store

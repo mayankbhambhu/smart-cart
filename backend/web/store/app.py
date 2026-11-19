@@ -3,15 +3,14 @@
 Run: uvicorn web.store.app:app --port 8002   (from the repo root)
 """
 from datetime import date, datetime, timedelta
-from pathlib import Path
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse
 
 from web.shared.signin import add_signin_routes
-from web.shared import ApiError, api_for, back, flash, login_required, make_app, render
+from web.shared import WEB_UI_DIR, ApiError, api_for, back, flash, login_required, make_app, render
 
-app, templates = make_app("FreshFlow Store Ops", Path(__file__).parent / "templates", "store")
+app, templates = make_app("FreshFlow Store Ops", WEB_UI_DIR / "store" / "templates", "store")
 add_signin_routes(app, templates, "store")  # Google button, email magic link, SSO
 STAFF = {"owner", "store_manager", "floor_manager", "worker"}
 MANAGERS = {"owner", "store_manager"}

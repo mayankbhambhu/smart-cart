@@ -2,15 +2,14 @@
 
 Run: uvicorn web.customer.app:app --port 8001   (from the repo root)
 """
-from pathlib import Path
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
 
 from web.shared.signin import add_signin_routes
-from web.shared import Api, api_for, back, flash, login_required, make_app, render
+from web.shared import WEB_UI_DIR, Api, api_for, back, flash, login_required, make_app, render
 
-app, templates = make_app("FreshFlow", Path(__file__).parent / "templates", "customer")
+app, templates = make_app("FreshFlow", WEB_UI_DIR / "customer" / "templates", "customer")
 add_signin_routes(app, templates, "customer")  # Google button, email magic link, SSO
 CUSTOMER = {"customer"}
 DIETARY = ["vegan", "vegetarian", "gluten_free", "dairy_free", "organic", "sugar_free"]

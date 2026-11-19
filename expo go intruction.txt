@@ -1,7 +1,7 @@
 Terminal 1: 
 ./scripts/dev.sh
 Terminal 2: 
-cd mobile
+cd app
 npx expo start
 Scan the QR code in Expo Go.
 

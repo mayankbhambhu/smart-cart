@@ -14,11 +14,11 @@ scanning and Apple/Google sign-in need a native mobile toolkit.
 
 | App | Who uses it | Local URL | Code |
 |---|---|---|---|
-| **API** (REST + WebSocket) | everything talks to it | http://localhost:8000/docs | `backend/` |
-| **Customer dashboard** | shoppers (web) | http://localhost:8001 | `web/customer/` |
-| **Store Operations dashboard** | owner · store manager · floor manager · worker | http://localhost:8002 | `web/store/` |
-| **Admin Operations dashboard** | you + your team | http://localhost:8003 | `web/admin/` |
-| **Mobile app** (iOS + Android) | shoppers | Expo | `mobile/` |
+| **API** (REST + WebSocket) | everything talks to it | http://localhost:8000/docs | `backend/api/` |
+| **Customer dashboard** | shoppers (web) | http://localhost:8001 | `backend/web/customer/` + `web/customer/` |
+| **Store Operations dashboard** | owner · store manager · floor manager · worker | http://localhost:8002 | `backend/web/store/` + `web/store/` |
+| **Admin Operations dashboard** | you + your team | http://localhost:8003 | `backend/web/admin/` + `web/admin/` |
+| **Mobile app** (iOS + Android) | shoppers | Expo | `app/` |
 
 Each dashboard is a separate app with its own URL (its own "live link") and they all share one API and database.
 
@@ -32,7 +32,7 @@ Each dashboard is a separate app with its own URL (its own "live link") and they
           └──────── HTTPS (JWT) ──┴───────────────┴───────────────┴───────────────┘
                                           │
                           ┌───────────────▼────────────────┐
-                          │  FastAPI  (backend/app)        │   WebSocket /ws  ← live: family lists,
+                          │  FastAPI  (backend/api)        │   WebSocket /ws  ← live: family lists,
                           │  routes → services → models    │   inventory, restock alerts, tasks,
                           └───────┬───────────────┬────────┘   gate events, notifications
                                   │               │
@@ -47,7 +47,7 @@ Each dashboard is a separate app with its own URL (its own "live link") and they
 
 ## Features → where they live
 
-### 1. Customer (web `web/customer` + mobile `mobile/`)
+### 1. Customer (web `web/customer` + phone app `app/`)
 | Feature | Implementation |
 |---|---|
 | Delivery / **store pickup** (slot booking with capacity) / **in-store** mode | `api/routes/cart.py`, `stores.py → /pickup-slots` |
@@ -84,8 +84,12 @@ Each dashboard is a separate app with its own URL (its own "live link") and they
 
 ## File structure
 
+Three main folders: **`backend/`** (all the Python server code), **`web/`** (the website's pages,
+styles and scripts) and **`app/`** (the iOS + Android app). The website and the app both talk to
+the same API in `backend/api`. The app has no server of its own, so there is no `backend/app`.
+
 ```
-freshflow/
+smart-cart/
 ├── README.md
 ├── .env.example                 # every setting, documented
 ├── docker-compose.yml           # Postgres + API + 3 dashboards
@@ -93,83 +97,91 @@ freshflow/
 ├── scripts/
 │   ├── dev.sh                   # run everything locally (seeds demo data)
 │   └── smoke_test.py            # end-to-end: every page, every role, Scan & Go → gate
+├── docs/                        # Milestone presentations
 │
-├── backend/                     # ── FastAPI API (Python) ───────────────────────────
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── app/
-│   │   ├── main.py              # app factory, routers, CORS, lifespan
-│   │   ├── seed.py              # demo data: 3 stores, catalogue, staff, 60 days of sales
-│   │   ├── core/
-│   │   │   ├── config.py        # pydantic-settings (env vars)
-│   │   │   ├── database.py      # SQLAlchemy engine/session (SQLite or PostgreSQL)
-│   │   │   ├── security.py      # bcrypt, JWT, OTP hashing, signed receipt codes
-│   │   │   ├── deps.py          # current user, role guards, store scoping
-│   │   │   └── realtime.py      # WebSocket pub/sub hub
-│   │   ├── models/              # SQLAlchemy 2.0 ORM
-│   │   │   ├── user.py          # User(+roles), OTPCode, PaymentMethod, Notification
-│   │   │   ├── store.py         # Store(+aisle layout), ExitGate, GateEvent
-│   │   │   ├── catalog.py       # Category, Product, Inventory(aisle,row), Offer, RestockAlert
-│   │   │   ├── shopping.py      # ShoppingList, ListMember, ListItem, Cart, CartItem
-│   │   │   ├── order.py         # Order, OrderItem
-│   │   │   ├── staff.py         # CredentialRequest, Task, Shift, Attendance
-│   │   │   └── support.py       # SupportTicket
-│   │   ├── schemas/__init__.py  # Pydantic request/response models
-│   │   ├── services/
-│   │   │   ├── routing.py       # aisle route optimiser (distance matrix + 2-opt)
-│   │   │   ├── inventory.py     # stock moves, thresholds, auto restock tasks
-│   │   │   ├── pricing.py       # subtotal, offers, delivery fee, GST
-│   │   │   ├── payments.py      # Stripe / Razorpay UPI / PayPal / mock adapters
-│   │   │   ├── orders.py        # cart → order → paid lifecycle
-│   │   │   ├── analytics.py     # sales, profit, rush hours, offers, staff hours
-│   │   │   ├── auth_providers.py# Google & Apple token verification, SMS
-│   │   │   └── notify.py        # persisted + live notifications
-│   │   └── api/routes/
-│   │       ├── auth.py          # /auth/*, /me/*
-│   │       ├── stores.py        # store locator, catalogue, stock check, pickup slots
-│   │       ├── lists.py         # family lists + route
-│   │       ├── cart.py          # cart / smart cart
-│   │       ├── orders.py        # checkout, payment confirm, webhooks, receipts
-│   │       ├── gate.py          # exit-gate verification
-│   │       ├── store_ops.py     # inventory, alerts, store orders, offers, gates
-│   │       ├── people.py        # credential requests, tasks, shifts, attendance
-│   │       ├── analytics.py     # business analysis
-│   │       ├── support.py       # tickets (store side)
-│   │       ├── admin.py         # admin: approvals, stores, employees, tickets
-│   │       └── ws.py            # WebSocket endpoint with per-channel authorisation
-│   └── tests/                   # pytest: 19 tests, run on SQLite and PostgreSQL
+├── backend/                     # ══ BACKEND (Python) ══════════════════════════════════
+│   ├── api/                     # ── the REST + WebSocket API, used by the website AND the app
+│   │   ├── .env                 # your secrets and settings (not in git; see .env.example)
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   ├── app/
+│   │   │   ├── main.py          # app factory, routers, CORS, lifespan
+│   │   │   ├── seed.py          # demo data: 3 stores, catalogue, staff, 60 days of sales
+│   │   │   ├── core/
+│   │   │   │   ├── config.py    # pydantic-settings (env vars)
+│   │   │   │   ├── database.py  # SQLAlchemy engine/session (SQLite or PostgreSQL)
+│   │   │   │   ├── security.py  # bcrypt, JWT, OTP hashing, signed receipt codes
+│   │   │   │   ├── deps.py      # current user, role guards, store scoping
+│   │   │   │   └── realtime.py  # WebSocket pub/sub hub
+│   │   │   ├── models/          # SQLAlchemy 2.0 ORM
+│   │   │   │   ├── user.py      # User(+roles), OTPCode, PaymentMethod, Notification
+│   │   │   │   ├── store.py     # Store(+aisle layout), ExitGate, GateEvent
+│   │   │   │   ├── catalog.py   # Category, Product, Inventory(aisle,row), Offer, RestockAlert
+│   │   │   │   ├── shopping.py  # ShoppingList, ListMember, ListItem, Cart, CartItem
+│   │   │   │   ├── order.py     # Order, OrderItem
+│   │   │   │   ├── staff.py     # CredentialRequest, Task, Shift, Attendance
+│   │   │   │   └── support.py   # SupportTicket
+│   │   │   ├── schemas/__init__.py  # Pydantic request/response models
+│   │   │   ├── services/
+│   │   │   │   ├── routing.py   # aisle route optimiser (distance matrix + 2-opt)
+│   │   │   │   ├── inventory.py # stock moves, thresholds, auto restock tasks
+│   │   │   │   ├── pricing.py   # subtotal, offers, delivery fee, GST
+│   │   │   │   ├── payments.py  # Stripe / Razorpay UPI / PayPal / mock adapters
+│   │   │   │   ├── orders.py    # cart → order → paid lifecycle
+│   │   │   │   ├── analytics.py # sales, profit, rush hours, offers, staff hours
+│   │   │   │   ├── auth_providers.py# Google & Apple token verification, SMS
+│   │   │   │   └── notify.py    # persisted + live notifications
+│   │   │   └── api/routes/
+│   │   │       ├── auth.py      # /auth/*, /me/*
+│   │   │       ├── stores.py    # store locator, catalogue, stock check, pickup slots
+│   │   │       ├── lists.py     # family lists + route
+│   │   │       ├── cart.py      # cart / smart cart
+│   │   │       ├── orders.py    # checkout, payment confirm, webhooks, receipts
+│   │   │       ├── gate.py      # exit-gate verification
+│   │   │       ├── store_ops.py # inventory, alerts, store orders, offers, gates
+│   │   │       ├── people.py    # credential requests, tasks, shifts, attendance
+│   │   │       ├── analytics.py # business analysis
+│   │   │       ├── support.py   # tickets (store side)
+│   │   │       ├── admin.py     # admin: approvals, stores, employees, tickets
+│   │   │       └── ws.py        # WebSocket endpoint with per-channel authorisation
+│   │   └── tests/               # pytest: 31 tests, run on SQLite and PostgreSQL
+│   │
+│   └── web/                     # ── the server side of the 3 dashboards (FastAPI + Jinja2)
+│       ├── Dockerfile           # one image, APP=customer|store|admin (build from the repo root)
+│       ├── requirements.txt
+│       ├── shared/
+│       │   ├── __init__.py      # API client, session auth, role → dashboard hand-off, ₹ formatting
+│       │   └── signin.py        # the one login page for all three dashboards
+│       ├── customer/app.py      # shop, cart, pay, Scan & Go, lists, orders, profile
+│       ├── store/app.py         # overview, tasks, inventory, orders, gate, shifts, attendance,
+│       │                        # team & onboarding, analysis, offers, support
+│       └── admin/app.py         # overview, requests, stores, employees, tickets
 │
-├── web/                         # ── Three dashboards (Python: FastAPI + Jinja2 + htmx) ─
-│   ├── Dockerfile               # one image, APP=customer|store|admin
-│   ├── requirements.txt
-│   ├── shared/                  # API client, session auth, formatting (₹ Indian grouping)
-│   │   ├── __init__.py
-│   │   ├── templates/           # base layout, login, flash messages
+├── web/                         # ══ WEBSITE FRONTEND (HTML + CSS + JS, no Python) ═══════════
+│   ├── shared/
+│   │   ├── templates/           # base layout, login page, email-link page, flash messages
 │   │   └── static/              # app.css design system, live.js, vendored Chart.js/htmx
-│   ├── customer/  app.py + templates/   # shop, cart, pay, Scan & Go map, lists, orders, profile
-│   ├── store/     app.py + templates/   # overview, tasks, inventory, orders, gate, shifts,
-│   │                                    # attendance, team & onboarding, analysis, offers, support
-│   └── admin/     app.py + templates/   # overview, requests, stores, employees, tickets
+│   ├── customer/templates/      # customer pages
+│   ├── store/templates/         # store operations pages
+│   └── admin/templates/         # admin pages
 │
-└── mobile/                      # ── iOS + Android (Expo SDK 58, Expo Router, TypeScript) ──
+└── app/                         # ══ PHONE APP: iOS + Android (Expo SDK 58, TypeScript) ════
     ├── app.json                 # permissions, Apple Sign-In, Stripe/Google Pay plugins
     ├── eas.json                 # cloud builds for the App Store / Play Store
     └── src/
         ├── app/                 # screens (file-based routes)
         │   ├── _layout.tsx      # providers: Stripe, auth, cart
-        │   ├── login.tsx        # email · phone OTP · Google · Apple
-        │   ├── (tabs)/index.tsx     # shop (store + mode switch, diet filter)
-        │   ├── (tabs)/instore.tsx   # Scan & Go: route map, picked ✓, smart cart
-        │   ├── (tabs)/lists.tsx     # family lists
-        │   ├── (tabs)/orders.tsx    # purchase history
-        │   ├── (tabs)/profile.tsx   # details, diet, payment methods
+        │   ├── login.tsx        # email · phone OTP · Google · Apple · email link · SSO
+        │   ├── (tabs)/          # shopper app: shop, Scan & Go, lists, orders, profile
+        │   ├── staff/           # store operations app
+        │   ├── admin/           # admin app
         │   ├── cart.tsx         # checkout: slots, address, offers, Apple/Google Pay/UPI
         │   ├── scan.tsx         # camera barcode → smart cart
         │   ├── stores.tsx       # GPS store locator + stock check
         │   ├── list/[id].tsx    # live-synced list
         │   └── order/[id].tsx   # receipt QR for the exit gate
         ├── components/          # ui kit, ProductCard, StoreMap (SVG), QRCode (offline)
-        └── lib/                 # api client, auth, cart, live (WebSocket), payments, theme
+        └── lib/                 # api client, auth, roles, sign-in, cart, live (WebSocket), payments
 ```
 
 ## One login, the right app for each role
@@ -179,10 +191,10 @@ Everyone signs in on the same login screen. The **role stored on the account** d
 | Account role | Phone app opens | Website |
 |---|---|---|
 | `customer` | Shopping app (shop, Scan & Go, family lists, orders) | Customer site (8001) |
-| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`mobile/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (8002) |
-| `admin` | **Admin** (`mobile/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (8003) |
+| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`app/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (8002) |
+| `admin` | **Admin** (`app/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (8003) |
 
-The routing lives in `mobile/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. The websites work the same way: all three show the **same login page** (Email · Phone OTP · Sign up, plus Google, email link and SSO; the code is in `web/shared/signin.py`). If you sign in on a website that isn't the one for your role, you're moved to the right one, already signed in, with a "Signed in as … · opening …" note. This uses a one-minute single-use code (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
+The routing lives in `app/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. The websites work the same way: all three show the **same login page** (Email · Phone OTP · Sign up, plus Google, email link and SSO; the code is in `backend/web/shared/signin.py`, the page in `web/shared/templates/_login.html`). If you sign in on a website that isn't the one for your role, you're moved to the right one, already signed in, with a "Signed in as … · opening …" note. This uses a one-minute single-use code (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
 
 ## Sign-in options
 
@@ -272,7 +284,7 @@ your phone (App Store / Play Store). The phone and computer must be on the **sam
 2. In a **second terminal**:
 
    ```bash
-   cd mobile
+   cd app
    ```
 
    ```bash
@@ -304,11 +316,11 @@ App Store / Play Store builds: `npx eas-cli build --profile production`.
 ### Tests
 
 ```bash
-cd backend && ../.venv/bin/python -m pytest -q
+cd backend/api && ../../.venv/bin/python -m pytest -q
 ```
 
 ```bash
-cd backend && TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_test ../.venv/bin/python -m pytest -q
+cd backend/api && TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_test ../../.venv/bin/python -m pytest -q
 ```
 
 ```bash
@@ -318,7 +330,7 @@ cd backend && TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_test 
 The smoke test needs all four servers running (`./scripts/dev.sh`).
 
 ```bash
-cd mobile && npx tsc --noEmit
+cd app && npx tsc --noEmit
 ```
 
 ## Going live: what you need to plug in

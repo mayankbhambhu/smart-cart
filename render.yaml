@@ -6,7 +6,7 @@ services:
   - type: web
     name: freshflow-api
     runtime: python
-    rootDir: backend
+    rootDir: backend/api
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
     healthCheckPath: /health
@@ -21,8 +21,8 @@ services:
   - type: web
     name: freshflow-shop          # Customer dashboard
     runtime: python
-    buildCommand: pip install -r web/requirements.txt
-    startCommand: uvicorn web.customer.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    buildCommand: pip install -r backend/web/requirements.txt
+    startCommand: cd backend && uvicorn web.customer.app:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
@@ -33,8 +33,8 @@ services:
   - type: web
     name: freshflow-store         # Store operations dashboard
     runtime: python
-    buildCommand: pip install -r web/requirements.txt
-    startCommand: uvicorn web.store.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    buildCommand: pip install -r backend/web/requirements.txt
+    startCommand: cd backend && uvicorn web.store.app:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
@@ -45,8 +45,8 @@ services:
   - type: web
     name: freshflow-admin         # Admin operations dashboard
     runtime: python
-    buildCommand: pip install -r web/requirements.txt
-    startCommand: uvicorn web.admin.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    buildCommand: pip install -r backend/web/requirements.txt
+    startCommand: cd backend && uvicorn web.admin.app:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }

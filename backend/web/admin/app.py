@@ -2,14 +2,13 @@
 
 Run: uvicorn web.admin.app:app --port 8003   (from the repo root)
 """
-from pathlib import Path
 
 from fastapi import Form, Request
 
 from web.shared.signin import add_signin_routes
-from web.shared import api_for, back, flash, login_required, make_app, render
+from web.shared import WEB_UI_DIR, api_for, back, flash, login_required, make_app, render
 
-app, templates = make_app("FreshFlow Admin", Path(__file__).parent / "templates", "admin")
+app, templates = make_app("FreshFlow Admin", WEB_UI_DIR / "admin" / "templates", "admin")
 add_signin_routes(app, templates, "admin")  # Google button, email magic link, SSO
 ADMIN = {"admin"}
 guard = login_required(ADMIN)

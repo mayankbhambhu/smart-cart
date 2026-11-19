@@ -21,7 +21,10 @@ from starlette.middleware.sessions import SessionMiddleware
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", API_URL)  # what the browser uses (WebSocket)
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-session-secret-change-me")
-SHARED_DIR = Path(__file__).parent
+# The dashboards' HTML templates, CSS and JS live in the top-level web/ folder (the frontend);
+# this package is only the Python server side. WEB_UI_DIR overrides it (used by the Docker image).
+WEB_UI_DIR = Path(os.getenv("WEB_UI_DIR") or Path(__file__).resolve().parents[3] / "web")
+SHARED_DIR = WEB_UI_DIR / "shared"
 
 # Where each dashboard lives. The role stored on the account decides which one a person uses.
 APP_URLS = {
