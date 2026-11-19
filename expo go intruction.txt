@@ -2,12 +2,10 @@ Terminal 1:
 ./scripts/dev.sh
 Terminal 2: 
 cd app
+npm install
 npx expo start
 Scan the QR code in Expo Go.
 
-Restart Terminal 2 with 
-npx expo start -c 
-and reload the app.
 
 
 only for me

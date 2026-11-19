@@ -12,3 +12,4 @@ app/dist/
 app/ios/
 app/android/
 .DS_Store
+.vscode/
