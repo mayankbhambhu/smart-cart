@@ -348,6 +348,20 @@ cd app && npx tsc --noEmit
 That creates the database, the API and three dashboard services, each with its own URL.
 Update `API_URL` / `PUBLIC_API_URL` if your API URL differs.
 
+## Publishing the phone app on Google Play
+
+Step-by-step guide: [`app/store-listing/PLAY_STORE_GUIDE.md`](app/store-listing/PLAY_STORE_GUIDE.md).
+Store texts, form answers and graphics: [`app/store-listing/`](app/store-listing/).
+Android package ID: `com.mayankbhambhu.freshflow`.
+
+What's already in place for Google Play's rules:
+* A public privacy policy at `/privacy` on every website, linked from the app's login and profile screens.
+* Account deletion in the app (Profile → Delete my account) and on the web (`/account/delete`), via `POST /me/delete`.
+  It erases the shopper's personal data and keeps past orders anonymously.
+* Only the permissions the app needs: internet, vibration, camera (barcodes, no microphone) and location (store finder).
+* On the public server (`render.yaml`) the demo accounts get a secret password (`SEED_PASSWORD`) and aren't listed on the login page.
+  The app hides the demo list and server address in store builds.
+
 ## Design notes and limits
 
 * Inventory is decremented **when an item enters an in-store smart cart** (as specified) and

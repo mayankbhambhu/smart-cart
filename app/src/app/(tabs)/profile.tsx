@@ -1,8 +1,10 @@
 import { router, useFocusEffect } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Text } from "react-native";
 import { Button, Card, H2, Input, Muted, Row, s } from "@/components/ui";
 import { api, logError } from "@/lib/api";
+import { PRIVACY_URL } from "@/lib/config";
 import { useAuth } from "@/lib/auth";
 import { colors } from "@/lib/theme";
 import type { User } from "@/lib/types";
@@ -27,6 +29,23 @@ export default function Profile() {
     if (!newMethod.label) return;
     await api.post("/me/payment-methods", newMethod); setNewMethod({ ...newMethod, label: "" }); loadMethods();
   };
+
+  // Google Play requires that people can delete their account from inside the app.
+  const deleteAccount = () => Alert.alert(
+    "Delete your account?",
+    "This erases your name, email, phone, address, saved payment methods, cart and list memberships, and signs you out. " +
+      "Lists you created pass to another member. Past orders are kept without your personal details (tax law). This can't be undone.",
+    [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete account", style: "destructive", onPress: async () => {
+        try {
+          await api.post("/me/delete", { confirm: "DELETE" });
+          await signOut();
+          router.replace("/login");
+          Alert.alert("Account deleted", "Your account and personal data have been deleted.");
+        } catch (e) { Alert.alert("Couldn't delete the account", (e as Error).message); }
+      } },
+    ]);
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad}>
@@ -61,6 +80,11 @@ export default function Profile() {
       </Card>
       <Button title="Purchase history" variant="secondary" onPress={() => router.push("/(tabs)/orders")} style={{ marginBottom: 10 }} />
       <Button title="Log out" variant="danger" onPress={async () => { await signOut(); router.replace("/login"); }} />
+      <Card style={{ marginTop: 16 }}>
+        <H2>Privacy</H2>
+        <Button small variant="ghost" title="Privacy policy" onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)} />
+        <Button small variant="ghost" title="Delete my account" onPress={deleteAccount} />
+      </Card>
     </ScrollView>
   );
 }

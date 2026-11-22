@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.security import create_access_token, hash_otp, hash_password, verify_password
-from app.models import Notification, OTPCode, PaymentMethod, User
+from app.models import Notification, OTPCode, PaymentMethod, Role, User
 from app.models._mixins import utcnow
 from app.schemas import (ChangePasswordIn, LoginIn, OTPRequestIn, OTPVerifyIn, PaymentMethodIn,
                          PaymentMethodOut, ProfileUpdateIn, RegisterIn, SocialLoginIn, TokenOut, UserOut)
@@ -303,3 +303,51 @@ def mark_read(user: User = Depends(get_current_user), db: Session = Depends(get_
     db.query(Notification).filter_by(user_id=user.id, read=False).update({"read": True})
     db.commit()
     return {"ok": True}
+
+
+class DeleteAccountIn(BaseModel):
+    confirm: str  # must be "DELETE", so an accidental tap can't remove an account
+
+
+@me_router.post("/delete")
+def delete_account(data: DeleteAccountIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A shopper deletes their own account (required by Google Play and the App Store).
+
+    Personal data is erased: name, email, phone, address, diet, saved payment methods,
+    notifications, carts and list memberships. Shared family lists the person created pass to
+    another member. Past orders stay as anonymous financial records (tax law), with the delivery
+    address removed. Staff accounts are offboarded by their store owner or the admin team instead,
+    because attendance and wage records belong to the store."""
+    from app.api.routes.cart import _release_instore_stock
+    from app.models import Cart, ListMember, LoginCode, Order, ShoppingList
+
+    if data.confirm.strip().upper() != "DELETE":
+        raise HTTPException(400, 'Type DELETE to confirm')
+    if Role(user.role) != Role.CUSTOMER:
+        raise HTTPException(403, "Staff and admin accounts are removed by your store owner or the FreshFlow admin team")
+
+    for cart in db.query(Cart).filter(Cart.user_id == user.id).all():
+        if cart.status == "active":
+            _release_instore_stock(db, cart)  # give back stock picked up during Scan & Go
+        db.delete(cart)
+    for lst in db.query(ShoppingList).filter(ShoppingList.owner_id == user.id).all():
+        heir = next((m for m in lst.members if m.user_id != user.id), None)
+        if heir:
+            lst.owner_id = heir.user_id
+        else:
+            db.delete(lst)
+    db.query(ListMember).filter(ListMember.user_id == user.id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.user_id == user.id).delete(synchronize_session=False)
+    db.query(LoginCode).filter(LoginCode.user_id == user.id).delete(synchronize_session=False)
+    if user.phone:
+        db.query(OTPCode).filter(OTPCode.phone == user.phone).delete(synchronize_session=False)
+    user.payment_methods.clear()
+    db.query(Order).filter(Order.user_id == user.id).update({"delivery_address": None}, synchronize_session=False)
+
+    user.email = user.phone = user.password_hash = user.provider_subject = None
+    user.default_address = user.preferred_store_id = None
+    user.full_name, user.auth_provider = "Deleted user", "deleted"
+    user.dietary_preferences = []
+    user.is_active = False
+    db.commit()
+    return {"deleted": True}

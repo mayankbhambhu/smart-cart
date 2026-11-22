@@ -4,6 +4,7 @@ of order history so analytics have something to show.
     python -m app.seed            # create tables + seed (skips if already seeded)
     python -m app.seed --reset    # drop everything and reseed
 """
+import os
 import random
 import secrets
 import sys
@@ -16,7 +17,9 @@ from app.models import (Attendance, Category, CredentialRequest, ExitGate, Inven
 from app.models._mixins import utcnow
 
 random.seed(42)
-PASSWORD = "Password@123"
+# Every demo account uses this password. On a public server set SEED_PASSWORD to a secret value
+# (render.yaml generates one), otherwise anyone who reads the README could sign in as admin.
+PASSWORD = os.getenv("SEED_PASSWORD") or "Password@123"
 _PW_HASH = None
 
 CATEGORIES = [("Fruits & Vegetables", "🥦"), ("Dairy, Bread & Eggs", "🥛"), ("Atta, Rice & Dal", "🌾"),

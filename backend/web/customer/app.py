@@ -1,13 +1,13 @@
 """Customer web app — shop for delivery/pickup, in-store Scan & Go, family lists, receipts.
 
-Run: uvicorn web.customer.app:app --port 8001   (from the repo root)
+Run: uvicorn web.customer.app:app --port 8001   (from the backend/ folder)
 """
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
 
 from web.shared.signin import add_signin_routes
-from web.shared import WEB_UI_DIR, Api, api_for, back, flash, login_required, make_app, render
+from web.shared import WEB_UI_DIR, Api, ApiError, api_for, back, flash, login_required, make_app, render
 
 app, templates = make_app("FreshFlow", WEB_UI_DIR / "customer" / "templates", "customer")
 add_signin_routes(app, templates, "customer")  # Google button, email magic link, SSO
@@ -302,6 +302,29 @@ async def add_method(request: Request, kind: str = Form(...), label: str = Form(
 async def delete_method(request: Request, pm_id: int):
     api_for(request).delete(f"/me/payment-methods/{pm_id}")
     return back(request)
+
+
+# ---- account deletion (public page: Google Play asks for a web link) ----------------------
+@app.get("/account/delete")
+async def account_delete_page(request: Request):
+    return render(templates, request, "account_delete.html")
+
+
+@app.post("/account/delete")
+async def account_delete(request: Request, confirm: str = Form("")):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login?next=/account/delete", status_code=303)
+    try:
+        api_for(request).post("/me/delete", {"confirm": confirm})
+    except ApiError as e:
+        if e.status == 401:
+            request.session.clear()
+            return RedirectResponse("/login?next=/account/delete", status_code=303)
+        flash(request, str(e), "error")
+        return RedirectResponse("/account/delete", status_code=303)
+    request.session.clear()
+    return render(templates, request, "account_delete.html", deleted=True, user=None, token=None)
 
 
 # ---- store map ---------------------------------------------------------------------------

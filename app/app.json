@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.freshflow.customer",
+      "bundleIdentifier": "com.mayankbhambhu.freshflow",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "FreshFlow uses the camera to scan product barcodes into your smart cart.",
@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "app.freshflow.customer",
+      "package": "com.mayankbhambhu.freshflow",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f8a4c"
@@ -31,6 +31,12 @@
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -44,7 +50,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "FreshFlow uses the camera to scan product barcodes into your smart cart."
+          "cameraPermission": "FreshFlow uses the camera to scan product barcodes into your smart cart.",
+          "recordAudioAndroid": false,
+          "microphonePermission": false
         }
       ],
       [
@@ -59,7 +67,8 @@
           "merchantIdentifier": "merchant.app.freshflow",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": false

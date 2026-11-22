@@ -1,6 +1,6 @@
 """Store Operations dashboard — owner, store manager, floor manager, worker.
 
-Run: uvicorn web.store.app:app --port 8002   (from the repo root)
+Run: uvicorn web.store.app:app --port 8002   (from the backend/ folder)
 """
 from datetime import date, datetime, timedelta
 

@@ -22,6 +22,10 @@
         <input name="label" placeholder="name@okbank / Visa •••• 4242" required style="flex:1"><button class="btn sec">Add</button></form>
       <small>Cards are tokenised by Stripe. We never store card numbers.</small>
     </div>
+    <div class="card"><h2>Privacy</h2>
+      <p class="muted" style="margin-top:0">Read how we use your data, or delete your account and personal data.</p>
+      <div class="row"><a class="btn ghost" href="/privacy">Privacy policy</a><a class="btn ghost" href="/account/delete" style="color:var(--danger)">Delete account</a></div>
+    </div>
     <div class="card"><h2>Notifications</h2>{% for n in notifications %}<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>{{ n.title }}</b><br><small>{{ n.body }} · {{ n.created_at|dt }}</small></div>{% else %}<p class="muted">Nothing yet.</p>{% endfor %}</div>
   </div>
 </div>

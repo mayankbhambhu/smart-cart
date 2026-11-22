@@ -75,6 +75,7 @@
   {% if demo_accounts %}<div class="divider">demo accounts · password Password@123</div>
   <div style="font-size:.82rem">{% for email, role in demo_accounts %}
     <div class="row between" style="padding:2px 0"><a href="/login?mode=email&identifier={{ email|urlencode }}{{ nq }}">{{ email }}</a><span class="muted">{{ role }}</span></div>{% endfor %}</div>{% endif %}
+  <p class="muted" style="text-align:center;font-size:.8rem;margin:16px 0 0">By continuing you agree to our <a href="/privacy">privacy policy</a>.</p>
 </div></div>
 {% endblock %}
 {% block scripts %}{{ super() }}

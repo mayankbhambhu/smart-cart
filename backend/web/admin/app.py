@@ -1,6 +1,6 @@
 """Admin Operations dashboard — the FreshFlow platform team.
 
-Run: uvicorn web.admin.app:app --port 8003   (from the repo root)
+Run: uvicorn web.admin.app:app --port 8003   (from the backend/ folder)
 """
 
 from fastapi import Form, Request

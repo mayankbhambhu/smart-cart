@@ -2,12 +2,12 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { GoogleButton } from "@/components/GoogleButton";
 import { Button, Card, H1, H2, Input, Muted, Row, s } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { API_URL, GOOGLE_IDS } from "@/lib/config";
+import { API_URL, GOOGLE_IDS, PRIVACY_URL } from "@/lib/config";
 import { sendMagicLink } from "@/lib/firebase";
 import { completeSignIn, fetchProviders, type Providers, signInWithSso } from "@/lib/signin";
 import { colors } from "@/lib/theme";
@@ -129,8 +129,13 @@ export default function Login() {
         {Platform.OS === "ios" && <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN} buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
           cornerRadius={12} style={{ height: 48 }} onPress={apple} />}
-        <Muted>Demo (password Password@123): asha@example.com · manager.blr01@freshflow.app · worker1.blr01@freshflow.app · admin@freshflow.app</Muted>
-        <Muted>Server: {API_URL}</Muted>
+        <Pressable onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}>
+          <Muted>By continuing you agree to our <Text style={{ textDecorationLine: "underline" }}>privacy policy</Text>.</Muted>
+        </Pressable>
+        {__DEV__ && <>
+          <Muted>Demo (password Password@123): asha@example.com · manager.blr01@freshflow.app · worker1.blr01@freshflow.app · admin@freshflow.app</Muted>
+          <Muted>Server: {API_URL}</Muted>
+        </>}
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -7,7 +7,8 @@ from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from web.shared import (APP_NAMES, APP_URLS, PUBLIC_API_URL, ROLE_NAMES, Api, ApiError, app_for_role, finish_login,
+from web.shared import (APP_NAMES, APP_URLS, PUBLIC_API_URL, ROLE_NAMES, SHOW_DEMO_ACCOUNTS, Api, ApiError,
+                        app_for_role, finish_login,
                         flash, render)
 
 APP_LINK_SCHEMES = ("exp://", "freshflow://")  # the phone app (Expo Go in development, the built app later)
@@ -40,7 +41,7 @@ def add_signin_routes(app: FastAPI, templates: Jinja2Templates, app_key: str) ->
             mode = "email"
         return render(templates, request, "_login.html", next=next, mode=mode,
                       otp_step=step == "verify" and bool(request.session.get("otp_phone")),
-                      otp_phone=request.session.get("otp_phone"), demo_accounts=DEMO_ACCOUNTS)
+                      otp_phone=request.session.get("otp_phone"), demo_accounts=DEMO_ACCOUNTS if SHOW_DEMO_ACCOUNTS else [])
 
     @app.post("/login")
     async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):
@@ -85,6 +86,11 @@ def add_signin_routes(app: FastAPI, templates: Jinja2Templates, app_key: str) ->
             return to_login("phone", step="verify")
         request.session.pop("otp_phone", None)
         return RedirectResponse(finish_login(request, r, app_key), status_code=303)
+
+    @app.get("/privacy")
+    async def privacy(request: Request):
+        """Public privacy policy (Google Play asks for its address and shows it on the store page)."""
+        return render(templates, request, "_privacy.html")
 
     @app.get("/logout")
     async def logout(request: Request):

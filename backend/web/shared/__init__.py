@@ -21,6 +21,10 @@ from starlette.middleware.sessions import SessionMiddleware
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", API_URL)  # what the browser uses (WebSocket)
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-session-secret-change-me")
+# Shown on the privacy policy and delete-account pages (Google Play needs a contact address).
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "")
+# The demo accounts list on the login page. Turn off on a public server (render.yaml does).
+SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() in ("1", "true", "yes")
 # The dashboards' HTML templates, CSS and JS live in the top-level web/ folder (the frontend);
 # this package is only the Python server side. WEB_UI_DIR overrides it (used by the Docker image).
 WEB_UI_DIR = Path(os.getenv("WEB_UI_DIR") or Path(__file__).resolve().parents[3] / "web")
@@ -168,6 +172,7 @@ def make_app(name: str, template_dir: Path, accent: str) -> tuple[FastAPI, Jinja
     templates = Jinja2Templates(directory=[template_dir, SHARED_DIR / "templates"])
     templates.env.filters.update(inr=inr, dt=dt, nice=nice)
     templates.env.globals.update(PUBLIC_API_URL=PUBLIC_API_URL, APP_ACCENT=accent, APP_NAME=name,
+                                 SUPPORT_EMAIL=SUPPORT_EMAIL,
                                  signin_providers=signin_providers)
     return app, templates
 

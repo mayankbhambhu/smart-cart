@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Delete your account · FreshFlow{% endblock %}
+{% block body %}
+<div class="auth"><div class="card" style="max-width:480px">
+  <p><a href="/">← FreshFlow</a></p>
+  <h1>Delete your FreshFlow account</h1>
+  {% include "_flash.html" %}
+  {% if deleted %}
+    <p>Your account has been deleted and you've been signed out everywhere. Thank you for shopping with us.</p>
+  {% elif not user %}
+    <p>Sign in first, then confirm on this page. Any sign-in method works (email, phone code, Google…).</p>
+    <a class="btn block" href="/login?next=/account/delete">Sign in to delete my account</a>
+  {% elif user.role != "customer" %}
+    <p>You're signed in as store staff or admin. These accounts are removed by your store owner or the FreshFlow admin team, so ask them.</p>
+  {% else %}
+    <p>Signed in as <b>{{ user.full_name or user.email or user.phone }}</b>.</p>
+    <p><b>This deletes:</b> your name, email, phone, address, dietary preferences, saved payment methods, notifications, cart and family list memberships.
+    Lists you created pass to another member. Past orders are kept without your personal details, because tax law requires it.</p>
+    <p class="muted">This can't be undone.</p>
+    <form method="post" action="/account/delete">
+      <div class="field"><label>Type <b>DELETE</b> to confirm</label><input name="confirm" autocomplete="off" required></div>
+      <button class="btn danger block">Delete my account</button>
+    </form>
+  {% endif %}
+  <p class="muted" style="font-size:.85rem;margin-top:16px">See our <a href="/privacy#delete">privacy policy</a> for details.</p>
+</div></div>
+{% endblock %}

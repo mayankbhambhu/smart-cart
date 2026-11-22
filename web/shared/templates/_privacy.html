@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Privacy policy · FreshFlow{% endblock %}
+{% block body %}
+<main class="container" style="max-width:780px;line-height:1.6">
+  <p><a href="/">← FreshFlow</a></p>
+  <h1>Privacy policy</h1>
+  <p class="muted">Last updated: 22 November 2026 · Applies to the FreshFlow app for Android and iOS and the FreshFlow websites.</p>
+
+  <p>FreshFlow lets you shop at partner grocery stores for delivery, pickup or in-store "Scan &amp; Go",
+  share shopping lists with your family, and pay from your phone. Store teams use FreshFlow to run their
+  stores. This page explains what we collect, why, who we share it with and how to delete it.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><b>Account details:</b> your name, email address and/or mobile number, and a securely hashed password if you set one.
+      If you sign in with Google, Apple, an email link or your company's single sign-on, we receive your name and email from that service.</li>
+    <li><b>Shopping data:</b> your cart, orders, pickup slots, delivery address, saved offers, dietary preferences and home store.</li>
+    <li><b>Family lists:</b> the lists you create or join, and the items you and the other members add.</li>
+    <li><b>Payment details:</b> payments are handled by Stripe (cards, Apple Pay, Google Pay), Razorpay (UPI) or PayPal.
+      We never see or store your full card number. We keep only a label (for example "Visa •••• 4242") and the payment provider's reference.</li>
+    <li><b>Location:</b> only while you use the store finder, to show nearby stores and their stock. It is used for that search only: we don't save it to your account or track you in the background.</li>
+    <li><b>Camera:</b> only to scan product barcodes and receipt codes. The image stays on your phone; only the barcode number is sent.</li>
+    <li><b>Store staff only:</b> role, store, employee code, shifts, attendance (clock-in and clock-out times), tasks, reviews and hourly wage.</li>
+    <li><b>Technical data:</b> basic server logs (time, address of the request, error messages) to keep the service running and secure.</li>
+  </ul>
+  <p>We do not show ads, we do not sell your data and we do not use third-party tracking or analytics tools.</p>
+
+  <h2>Why we use it</h2>
+  <ul>
+    <li>To create your account and sign you in.</li>
+    <li>To take, pay for and fulfil your orders, and to show your digital receipt at the store's exit gate.</li>
+    <li>To keep family lists in sync and plan the shortest route through the store.</li>
+    <li>To send you a sign-in code by SMS or a sign-in link by email when you ask for one.</li>
+    <li>For stores: to manage stock, staff, shifts and sales reports.</li>
+  </ul>
+
+  <h2>Who we share it with</h2>
+  <ul>
+    <li><b>The store you order from</b> sees your order, your name and, for delivery, your address.</li>
+    <li><b>Members of a family list</b> you join see the list, its items and your name.</li>
+    <li><b>Service providers</b> that run parts of FreshFlow for us, only for that purpose: our hosting provider (servers and database);
+      Stripe, Razorpay and PayPal (payments); Google, Apple and Firebase (sign-in); and our SMS provider (sign-in codes).</li>
+    <li>Authorities, when the law requires it.</li>
+  </ul>
+
+  <h2>Security</h2>
+  <p>All traffic is encrypted (HTTPS). Passwords are hashed with bcrypt, sign-in codes are stored only as hashes,
+  and the app keeps your sign-in token in the phone's secure storage.</p>
+
+  <h2>How long we keep it</h2>
+  <p>We keep your account until you delete it. Order and payment records are kept for as long as tax and accounting law requires.
+  When you delete your account they are kept without your name, email, phone or address.</p>
+
+  <h2 id="delete">Deleting your account</h2>
+  <p>You can delete your account at any time:</p>
+  <ul>
+    <li>In the app: <b>Profile → Delete account</b>.</li>
+    <li>On the web: <a href="/account/delete">the delete-account page</a> (sign in, then confirm).</li>
+  </ul>
+  <p>This removes your name, email, phone number, address, dietary preferences, saved payment methods, notifications, carts and
+  list memberships, and signs you out everywhere. Family lists you created pass to another member. Past orders are kept anonymously, as explained above.
+  Store staff accounts are removed by the store owner or the FreshFlow admin team.</p>
+
+  <h2>Your rights</h2>
+  <p>You can see and correct your details on your Profile page, and ask us for a copy of your data or for deletion using the contact below.</p>
+
+  <h2>Children</h2>
+  <p>FreshFlow is not meant for children under 18.</p>
+
+  <h2>Changes</h2>
+  <p>If we change this policy we will update the date at the top and, for important changes, tell you in the app.</p>
+
+  <h2>Contact</h2>
+  <p>{% if SUPPORT_EMAIL %}Email <a href="mailto:{{ SUPPORT_EMAIL }}">{{ SUPPORT_EMAIL }}</a>.{% else %}Use the contact email shown on FreshFlow's Google Play page.{% endif %}</p>
+</main>
+{% endblock %}
