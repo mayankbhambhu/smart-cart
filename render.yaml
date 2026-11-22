@@ -20,6 +20,7 @@ services:
       - { key: DEBUG, value: "false" }
       - { key: PAYMENTS_MODE, value: mock }
       - { key: SEED_PASSWORD, generateValue: true }   # password of the demo accounts: see it in the Render dashboard
+      - { key: SEED_HISTORY_DAYS, value: "21" }       # less demo history so the free server can load it
       - { key: API_PUBLIC_URL, value: https://freshflow-api.onrender.com }
       - { key: EMAIL_LINK_CONTINUE_URL, value: https://freshflow-shop.onrender.com/auth/email-link }
       - { key: SSO_ALLOWED_REDIRECTS, value: "https://freshflow-shop.onrender.com/,https://freshflow-store.onrender.com/,https://freshflow-admin.onrender.com/,freshflow://" }

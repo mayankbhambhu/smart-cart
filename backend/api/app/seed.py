@@ -20,6 +20,8 @@ random.seed(42)
 # Every demo account uses this password. On a public server set SEED_PASSWORD to a secret value
 # (render.yaml generates one), otherwise anyone who reads the README could sign in as admin.
 PASSWORD = os.getenv("SEED_PASSWORD") or "Password@123"
+# Days of past orders to create. Fewer days = faster and lighter (Render's free server uses 21).
+HISTORY_DAYS = int(os.getenv("SEED_HISTORY_DAYS") or 60)
 _PW_HASH = None
 
 CATEGORIES = [("Fruits & Vegetables", "🥦"), ("Dairy, Bread & Eggs", "🥛"), ("Atta, Rice & Dal", "🌾"),
@@ -200,9 +202,9 @@ def seed(db):
     db.add_all(offers)
     db.flush()
 
-    # 60 days of historical paid orders
+    # HISTORY_DAYS days of historical paid orders
     for store in stores:
-        for day_offset in range(60, -1, -1):
+        for day_offset in range(HISTORY_DAYS, -1, -1):
             day = (now - timedelta(days=day_offset)).date()
             weekend = day.weekday() >= 5
             for _ in range(random.randint(55, 75) + (25 if weekend else 0)):
