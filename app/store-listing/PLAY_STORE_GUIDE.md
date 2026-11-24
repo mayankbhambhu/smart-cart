@@ -18,19 +18,19 @@ to be online first (step 1). After that come the build and then Play Console.
 
 1. Sign up at **render.com** with your GitHub account.
 2. **New → Blueprint**, pick the `smart-cart` repository. Render reads `render.yaml` and creates the
-   database, the API and the three websites.
-3. When it asks for **SUPPORT_EMAIL**, type the email you want on the privacy policy (three times: one
-   for each website).
-4. Wait until all four services say **Live** (the first build takes a few minutes).
-5. Open each service and note its address. If a name was taken, Render adds letters, e.g.
-   `freshflow-api-x7k2.onrender.com`. If **any** address differs from `render.yaml`, replace the old
-   addresses in `render.yaml` and in `app/eas.json` with the real ones, commit and push.
+   database, the API (`freshflow-api`) and the website (`freshflow-web`: one address for shoppers,
+   store staff and admins).
+3. When it asks for **SUPPORT_EMAIL**, type the email you want on the privacy policy.
+4. Wait until all three say **Live** or **Available** (the first build takes a few minutes).
+5. Open `freshflow-api` and `freshflow-web` and note their addresses. If a name was taken, Render adds
+   letters, e.g. `freshflow-api-x7k2.onrender.com`. If an address differs from `render.yaml`, replace
+   the old address in `render.yaml` and in `app/eas.json` with the real one, commit and push.
 6. Check: open `https://<api address>/health`. It should show `"status":"ok"`.
 7. The demo accounts' password is **not** `Password@123` online. Find it in Render → `freshflow-api`
    → **Environment** → `SEED_PASSWORD` (click the eye icon).
 8. If you use Google sign-in, email links, SSO or SMS, copy those keys from your `backend/api/.env` into
    Render → `freshflow-api` → **Environment** too. In Firebase → Authentication → Settings →
-   **Authorized domains**, add your customer website's address.
+   **Authorized domains**, add your website's address.
 
 > Free plan: services sleep after about 15 minutes without visitors (the next visit takes about a minute to
 > wake up), and the free database expires after 30 days. That's fine for testing; upgrade the plans in

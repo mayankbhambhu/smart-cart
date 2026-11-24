@@ -3,7 +3,7 @@
 <div class="shell">
   <aside class="sidebar">
     <div class="logo"><i>F</i><span>FreshFlow<small>Admin Operations</small></span></div>
-    <nav class="nav">{% for href, label, icon in nav %}<a href="{{ href }}" class="{{ 'active' if path == href or (href != '/' and path.startswith(href)) }}">{{ icon }} {{ label }}</a>{% endfor %}
+    <nav class="nav">{% for href, label, icon in nav %}<a href="{{ P ~ href }}" class="{{ 'active' if path == P ~ href or (href != '/' and path.startswith(P ~ href)) }}">{{ icon }} {{ label }}</a>{% endfor %}
       <div class="sep">Account</div><a href="/logout">↩ Log out</a></nav>
   </aside>
   <main class="main">

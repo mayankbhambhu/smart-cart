@@ -38,7 +38,7 @@ def fake_idp(monkeypatch):
     sso._discovery.pop(ISSUER, None)
 
 
-def _start(client, idp, redirect="http://localhost:8002/auth/continue"):
+def _start(client, idp, redirect="http://localhost:8001/auth/continue"):
     r = client.get("/auth/sso/start", params={"redirect": redirect}, follow_redirects=False)
     assert r.status_code == 302, r.text
     q = parse_qs(urlparse(r.headers["location"]).query)

@@ -1,17 +1,14 @@
-"""Store Operations dashboard — owner, store manager, floor manager, worker.
-
-Run: uvicorn web.store.app:app --port 8002   (from the backend/ folder)
-"""
+"""Store Operations section of the website ("/store"): owner, store manager, floor manager, worker.
+Mounted by web/main.py; sign-in happens on the shared login page at "/login"."""
 from datetime import date, datetime, timedelta
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse
 
-from web.shared.signin import add_signin_routes
 from web.shared import WEB_UI_DIR, ApiError, api_for, back, flash, login_required, make_app, render
 
-app, templates = make_app("FreshFlow Store Ops", WEB_UI_DIR / "store" / "templates", "store")
-add_signin_routes(app, templates, "store")  # Google button, email magic link, SSO
+P = "/store"  # where this section lives on the website
+app, templates = make_app("FreshFlow Store Ops", WEB_UI_DIR / "store" / "templates", "store", prefix=P)
 STAFF = {"owner", "store_manager", "floor_manager", "worker"}
 MANAGERS = {"owner", "store_manager"}
 SUPERVISORS = MANAGERS | {"floor_manager"}
@@ -36,7 +33,7 @@ def page(request: Request, name: str, **ctx):
     user = request.session["user"]
     if user.get("must_change_password") and name != "account.html":
         flash(request, "Please set a new password before continuing.", "error")
-        return RedirectResponse("/account", status_code=303)
+        return RedirectResponse(P + "/account", status_code=303)
     ctx.setdefault("live_channels", [f"store:{user['store_id']}", f"user:{user['id']}"])
     ctx["nav"] = [n for n in NAV if user["role"] in n[3]]
     ctx["sid"] = user["store_id"]
@@ -52,6 +49,11 @@ def sid(request: Request) -> int:
 
 
 # ---- auth ------------------------------------------------------------------------------
+@app.get("/login")
+async def to_login():  # old bookmarks: everyone signs in on the one login page
+    return RedirectResponse("/login?next=" + P + "/", status_code=303)
+
+
 @app.get("/account")
 @guard()
 async def account(request: Request):
@@ -64,7 +66,7 @@ async def change_password(request: Request, current_password: str = Form(...), n
     api_for(request).post("/me/password", {"current_password": current_password, "new_password": new_password})
     request.session["user"] = {**request.session["user"], "must_change_password": False}
     flash(request, "Password updated")
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse(P + "/", status_code=303)
 
 
 # ---- overview ---------------------------------------------------------------------------
@@ -246,7 +248,7 @@ async def team(request: Request):
 @app.get("/team/requests")
 @guard(SUPERVISORS)
 async def team_requests(request: Request):
-    return RedirectResponse("/team#requests", status_code=303)
+    return RedirectResponse(P + "/team#requests", status_code=303)
 
 
 def _cred_body(form) -> dict:
@@ -320,7 +322,7 @@ async def gate(request: Request):
 @guard()
 async def gate_scan(request: Request, gate_id: int, code: str = Form(...)):
     request.session["gate_result"] = api_for(request).post(f"/gate/{gate_id}/simulate", {"code": code})
-    return RedirectResponse("/gate", status_code=303)
+    return RedirectResponse(P + "/gate", status_code=303)
 
 
 @app.get("/support")

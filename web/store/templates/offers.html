@@ -5,9 +5,9 @@
   {% for o in offers %}{% set s = stats.get(o.code) %}<tr><td><b>{{ o.code }}</b>{% if o.global %} <span class="badge info">platform</span>{% endif %}</td><td>{{ o.title }}</td>
     <td>{{ o.discount_percent|int }}% (max {{ o.max_discount|inr }}, min order {{ o.min_order|inr }})</td><td>{{ s.uses if s else 0 }}</td><td>{{ s.revenue|inr if s else '—' }}</td>
     <td><span class="badge {{ 'ok' if o.is_active else 'danger' }}">{{ 'live' if o.is_active else 'paused' }}</span></td>
-    <td>{% if not o.global %}<form method="post" action="/offers/{{ o.id }}/toggle"><button class="btn sm sec">{{ 'Pause' if o.is_active else 'Resume' }}</button></form>{% endif %}</td></tr>{% endfor %}
+    <td>{% if not o.global %}<form method="post" action="{{ P }}/offers/{{ o.id }}/toggle"><button class="btn sm sec">{{ 'Pause' if o.is_active else 'Resume' }}</button></form>{% endif %}</td></tr>{% endfor %}
 </table></div>
-<div class="card"><h2>Create a store offer</h2><form method="post" action="/offers" class="form-grid">
+<div class="card"><h2>Create a store offer</h2><form method="post" action="{{ P }}/offers" class="form-grid">
   <div><label>Code</label><input name="code" required placeholder="WEEKEND10"></div><div><label>Title</label><input name="title" required></div>
   <div><label>Discount %</label><input name="discount_percent" type="number" min="1" max="90" required></div><div><label>Max discount ₹</label><input name="max_discount" type="number" value="100"></div>
   <div><label>Min order ₹</label><input name="min_order" type="number" value="0"></div>

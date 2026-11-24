@@ -30,16 +30,14 @@ SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() in ("1", "t
 WEB_UI_DIR = Path(os.getenv("WEB_UI_DIR") or Path(__file__).resolve().parents[3] / "web")
 SHARED_DIR = WEB_UI_DIR / "shared"
 
-# Where each dashboard lives. The role stored on the account decides which one a person uses.
-APP_URLS = {
-    "customer": os.getenv("CUSTOMER_APP_URL", "http://localhost:8001").rstrip("/"),
-    "store": os.getenv("STORE_APP_URL", "http://localhost:8002").rstrip("/"),
-    "admin": os.getenv("ADMIN_APP_URL", "http://localhost:8003").rstrip("/"),
-}
+# One website with three sections. The role on the account decides which section a person sees:
+# shoppers get the shop at "/", store staff get "/store", admins get "/admin".
+SITE_URL = (os.getenv("SITE_URL") or os.getenv("RENDER_EXTERNAL_URL") or "http://localhost:8001").rstrip("/")
+SECTION_PREFIX = {"customer": "", "store": "/store", "admin": "/admin"}
 STAFF_ROLES = {"worker", "floor_manager", "store_manager", "owner"}
 ROLE_NAMES = {"customer": "Shopper", "worker": "Floor Assistant", "floor_manager": "Floor Manager",
               "store_manager": "Store Manager", "owner": "Store Owner", "admin": "Platform Admin"}
-APP_NAMES = {"customer": "Shopping", "store": "Store Operations", "admin": "Admin"}
+SECTION_NAMES = {"customer": "Shop", "store": "Store Operations", "admin": "Admin"}
 
 
 def app_for_role(role: str) -> str:
@@ -48,20 +46,27 @@ def app_for_role(role: str) -> str:
     return "store" if role in STAFF_ROLES else "customer"
 
 
-def finish_login(request: Request, payload: dict, app_key: str, next_url: str = "/") -> str:
-    """After any sign-in (password, OTP, Google, email link, SSO), decide where to go. If the account
-    belongs on this dashboard, start the session here; otherwise hand the user, already signed in, to the
-    dashboard for their role with a one-minute single-use code. Targets come only from APP_URLS."""
-    user = payload["user"]
-    target = app_for_role(user["role"])
-    if target == app_key:
-        store_session(request, payload)
-        return next_url if next_url.startswith("/") and not next_url.startswith("//") else "/"
-    try:
-        code = Api(payload["access_token"]).post("/auth/handoff")["code"]
-        return f"{APP_URLS[target]}/auth/continue?" + urlencode({"code": code})
-    except ApiError:  # fall back to that dashboard's login page with the email filled in
-        return f"{APP_URLS[target]}/login?" + urlencode({"identifier": user.get("email") or "", "switched": target})
+def home_for(role: str) -> str:
+    """The start page of the section this role uses."""
+    return SECTION_PREFIX[app_for_role(role)] + "/"
+
+
+def _in_section(url: str, section: str) -> bool:
+    prefix = SECTION_PREFIX[section]
+    if prefix:
+        return url == prefix or url.startswith(prefix + "/")
+    return not any(url == p or url.startswith(p + "/") for p in SECTION_PREFIX.values() if p)
+
+
+def finish_login(request: Request, payload: dict, next_url: str = "/") -> str:
+    """After any sign-in (password, OTP, Google, email link, SSO): remember the person and send them to
+    their own section. A ?next= page is honoured only if it's a page inside that section."""
+    store_session(request, payload)
+    role = payload["user"]["role"]
+    safe = next_url.startswith("/") and not next_url.startswith("//") and not next_url.startswith("/login")
+    if safe and next_url != "/" and _in_section(next_url, app_for_role(role)):
+        return next_url
+    return home_for(role)
 
 
 _providers_cache: dict = {"at": 0.0, "value": None}
@@ -164,15 +169,17 @@ def nice(v) -> str:
     return str(v or "").replace("_", " ").title()
 
 
-def make_app(name: str, template_dir: Path, accent: str) -> tuple[FastAPI, Jinja2Templates]:
+def make_app(name: str, template_dir: Path, accent: str, prefix: str = "") -> tuple[FastAPI, Jinja2Templates]:
+    """One section of the website. `prefix` is where web/main.py mounts it ("", "/store", "/admin").
+    All sections share one sign-in cookie, so signing in once works everywhere you're allowed."""
     app = FastAPI(title=name, docs_url=None, redoc_url=None)
-    app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, session_cookie=f"ff_{accent}",
-                       max_age=60 * 60 * 24 * 7, same_site="lax")
+    app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, session_cookie="ff_session",
+                       max_age=60 * 60 * 24 * 7, same_site="lax", https_only=SITE_URL.startswith("https://"))
     app.mount("/static", StaticFiles(directory=SHARED_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=[template_dir, SHARED_DIR / "templates"])
     templates.env.filters.update(inr=inr, dt=dt, nice=nice)
     templates.env.globals.update(PUBLIC_API_URL=PUBLIC_API_URL, APP_ACCENT=accent, APP_NAME=name,
-                                 SUPPORT_EMAIL=SUPPORT_EMAIL,
+                                 SUPPORT_EMAIL=SUPPORT_EMAIL, P=prefix,
                                  signin_providers=signin_providers)
     return app, templates
 
@@ -196,19 +203,21 @@ def back(request: Request, fallback: str = "/") -> RedirectResponse:
 
 
 def login_required(roles: set[str] | None = None, login_url: str = "/login"):
-    """Decorator for page handlers. Redirects to login, checks role, and turns API errors into
-    flash messages so forms never crash the page."""
+    """Decorator for page handlers. Sends signed-out people to the login page, sends people to their
+    own section if this page isn't for their role, and turns API errors into flash messages so forms
+    never crash the page."""
 
     def deco(fn):
         @wraps(fn)
         async def wrapper(request: Request, *a, **kw):
             user = request.session.get("user")
             if not user:
-                return RedirectResponse(f"{login_url}?next={request.url.path}", status_code=303)
+                return RedirectResponse(f"{login_url}?" + urlencode({"next": request.url.path}), status_code=303)
             if roles and user["role"] not in roles:
-                # Logged in, but this page is above their role: keep the session, go home.
-                flash(request, "You don't have access to that page.", "error")
-                return RedirectResponse("/" if request.url.path != "/" else login_url, status_code=303)
+                home = home_for(user["role"])
+                if request.url.path != home and _in_section(request.url.path, app_for_role(user["role"])):
+                    flash(request, "You don't have access to that page.", "error")
+                return RedirectResponse(home, status_code=303)
             try:
                 return await fn(request, *a, **kw)
             except ApiError as e:
@@ -217,8 +226,9 @@ def login_required(roles: set[str] | None = None, login_url: str = "/login"):
                     return RedirectResponse(login_url, status_code=303)
                 flash(request, str(e), "error")
                 if request.method == "GET":
-                    return RedirectResponse("/", status_code=303) if request.url.path != "/" else \
-                        RedirectResponse(login_url, status_code=303)
+                    section_home = request.scope.get("root_path", "") + "/"
+                    return RedirectResponse(section_home if request.url.path != section_home else login_url,
+                                            status_code=303)
                 return back(request)
 
         return wrapper

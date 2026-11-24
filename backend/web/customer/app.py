@@ -1,7 +1,5 @@
-"""Customer web app — shop for delivery/pickup, in-store Scan & Go, family lists, receipts.
-
-Run: uvicorn web.customer.app:app --port 8001   (from the backend/ folder)
-"""
+"""Shop section of the website ("/"): delivery/pickup, in-store Scan & Go, family lists, receipts.
+It also owns the one login page for everybody. Mounted by web/main.py."""
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
@@ -10,7 +8,7 @@ from web.shared.signin import add_signin_routes
 from web.shared import WEB_UI_DIR, Api, ApiError, api_for, back, flash, login_required, make_app, render
 
 app, templates = make_app("FreshFlow", WEB_UI_DIR / "customer" / "templates", "customer")
-add_signin_routes(app, templates, "customer")  # Google button, email magic link, SSO
+add_signin_routes(app, templates)  # the one login page: password, OTP, Google, email link, SSO
 CUSTOMER = {"customer"}
 DIETARY = ["vegan", "vegetarian", "gluten_free", "dairy_free", "organic", "sugar_free"]
 ICON = {}

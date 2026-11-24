@@ -1,4 +1,4 @@
-# Render Blueprint: 1 Postgres + API + 3 dashboards, each with its own live URL.
+# Render Blueprint: 1 Postgres + the API + the website (one address for shoppers, store staff and admins).
 # plan: free keeps it free. Free services sleep after ~15 idle minutes (the first visit then takes
 # about a minute) and a free database expires after 30 days. Change the plans to paid ones to avoid that.
 databases:
@@ -22,50 +22,17 @@ services:
       - { key: SEED_PASSWORD, generateValue: true }   # password of the demo accounts: see it in the Render dashboard
       - { key: SEED_HISTORY_DAYS, value: "21" }       # less demo history so the free server can load it
       - { key: API_PUBLIC_URL, value: https://freshflow-api.onrender.com }
-      - { key: EMAIL_LINK_CONTINUE_URL, value: https://freshflow-shop.onrender.com/auth/email-link }
-      - { key: SSO_ALLOWED_REDIRECTS, value: "https://freshflow-shop.onrender.com/,https://freshflow-store.onrender.com/,https://freshflow-admin.onrender.com/,freshflow://" }
+      - { key: EMAIL_LINK_CONTINUE_URL, value: https://freshflow-web.onrender.com/auth/email-link }
+      - { key: SSO_ALLOWED_REDIRECTS, value: "https://freshflow-web.onrender.com/,freshflow://" }
   - type: web
-    name: freshflow-shop          # Customer dashboard
+    name: freshflow-web           # the website: shop at /, Store Operations at /store, Admin at /admin
     runtime: python
     plan: free
     buildCommand: pip install -r backend/web/requirements.txt
-    startCommand: cd backend && uvicorn web.customer.app:app --host 0.0.0.0 --port $PORT --proxy-headers
+    startCommand: cd backend && uvicorn web.main:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
       - { key: SESSION_SECRET, generateValue: true }
       - { key: SHOW_DEMO_ACCOUNTS, value: "false" }
       - { key: SUPPORT_EMAIL, sync: false }   # your contact email, asked for when you create the Blueprint
-      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
-      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
-      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }
-  - type: web
-    name: freshflow-store         # Store operations dashboard
-    runtime: python
-    plan: free
-    buildCommand: pip install -r backend/web/requirements.txt
-    startCommand: cd backend && uvicorn web.store.app:app --host 0.0.0.0 --port $PORT --proxy-headers
-    envVars:
-      - { key: API_URL, value: https://freshflow-api.onrender.com }
-      - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
-      - { key: SESSION_SECRET, generateValue: true }
-      - { key: SHOW_DEMO_ACCOUNTS, value: "false" }
-      - { key: SUPPORT_EMAIL, sync: false }   # your contact email, asked for when you create the Blueprint
-      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
-      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
-      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }
-  - type: web
-    name: freshflow-admin         # Admin operations dashboard
-    runtime: python
-    plan: free
-    buildCommand: pip install -r backend/web/requirements.txt
-    startCommand: cd backend && uvicorn web.admin.app:app --host 0.0.0.0 --port $PORT --proxy-headers
-    envVars:
-      - { key: API_URL, value: https://freshflow-api.onrender.com }
-      - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
-      - { key: SESSION_SECRET, generateValue: true }
-      - { key: SHOW_DEMO_ACCOUNTS, value: "false" }
-      - { key: SUPPORT_EMAIL, sync: false }   # your contact email, asked for when you create the Blueprint
-      - { key: CUSTOMER_APP_URL, value: https://freshflow-shop.onrender.com }
-      - { key: STORE_APP_URL, value: https://freshflow-store.onrender.com }
-      - { key: ADMIN_APP_URL, value: https://freshflow-admin.onrender.com }

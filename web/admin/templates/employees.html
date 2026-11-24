@@ -10,9 +10,9 @@
   <tr><th>Name</th><th>Store</th><th>Role</th><th>Code</th><th>Phone</th><th>Joined</th><th>Wage / hr</th><th>Actions</th></tr>
   {% for e in rows %}<tr><td><b>{{ e.name }}</b><br><small>{{ e.email }}</small></td><td>{{ e.store_name }}</td><td>{{ e.role|nice }}</td><td>{{ e.employee_code }}</td><td>{{ e.phone }}</td>
     <td>{{ e.joined_on or '—' }}{% if e.left_on %}<br><small>left {{ e.left_on }}</small>{% endif %}</td><td>{{ e.hourly_wage|inr if e.hourly_wage else '—' }}</td>
-    <td>{% if e.is_active and e.role != 'owner' %}<form method="post" action="/employees/{{ e.id }}/remove" class="row" onsubmit="return confirm('Remove {{ e.name }}? Their login stops working immediately.')">
+    <td>{% if e.is_active and e.role != 'owner' %}<form method="post" action="{{ P }}/employees/{{ e.id }}/remove" class="row" onsubmit="return confirm('Remove {{ e.name }}? Their login stops working immediately.')">
         <select name="reason"><option value="left">Left</option><option value="fired">Fired</option></select><button class="btn sm danger">Remove</button></form>
-      <form method="post" action="/employees/{{ e.id }}/reset" style="margin-top:4px"><button class="btn ghost sm">Reset password</button></form>
+      <form method="post" action="{{ P }}/employees/{{ e.id }}/reset" style="margin-top:4px"><button class="btn ghost sm">Reset password</button></form>
       {% elif not e.is_active %}<span class="badge danger">removed</span>{% endif %}</td></tr>
   {% else %}<tr><td colspan="8" class="empty">No employees</td></tr>{% endfor %}
 </table></div>

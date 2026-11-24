@@ -7,7 +7,7 @@
     "base": {
       "env": {
         "EXPO_PUBLIC_API_URL": "https://freshflow-api.onrender.com",
-        "EXPO_PUBLIC_WEB_URL": "https://freshflow-shop.onrender.com"
+        "EXPO_PUBLIC_WEB_URL": "https://freshflow-web.onrender.com"
       }
     },
     "development": {

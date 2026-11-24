@@ -1,19 +1,22 @@
-"""Admin Operations dashboard — the FreshFlow platform team.
-
-Run: uvicorn web.admin.app:app --port 8003   (from the backend/ folder)
-"""
+"""Admin section of the website ("/admin"): the FreshFlow platform team.
+Mounted by web/main.py; sign-in happens on the shared login page at "/login"."""
 
 from fastapi import Form, Request
+from fastapi.responses import RedirectResponse
 
-from web.shared.signin import add_signin_routes
 from web.shared import WEB_UI_DIR, api_for, back, flash, login_required, make_app, render
 
-app, templates = make_app("FreshFlow Admin", WEB_UI_DIR / "admin" / "templates", "admin")
-add_signin_routes(app, templates, "admin")  # Google button, email magic link, SSO
+P = "/admin"  # where this section lives on the website
+app, templates = make_app("FreshFlow Admin", WEB_UI_DIR / "admin" / "templates", "admin", prefix=P)
 ADMIN = {"admin"}
 guard = login_required(ADMIN)
 NAV = [("/", "Overview", "📊"), ("/requests", "Credential requests", "🔐"), ("/stores", "Stores & owners", "🏬"),
        ("/employees", "Employees", "👥"), ("/tickets", "Store issues", "🛟")]
+
+
+@app.get("/login")
+async def to_login():  # old bookmarks: everyone signs in on the one login page
+    return RedirectResponse("/login?next=" + P + "/", status_code=303)
 
 
 def page(request, name, **ctx):

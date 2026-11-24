@@ -16,7 +16,7 @@ const fromEnv = process.env.EXPO_PUBLIC_API_URL;
 const envUrl = fromEnv && !/\.x(\.|:|$)/i.test(fromEnv) ? fromEnv : undefined;
 
 export const API_URL = envUrl ?? apiFromDevServer() ?? extra.apiUrl ?? "http://localhost:8000";
-/** The customer website: holds the privacy policy and the delete-account page (Google Play needs both). */
+/** The website: holds the privacy policy and the delete-account page (Google Play needs both). */
 export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL || API_URL.replace(/:8000$/, ":8001")).replace(/\/$/, "");
 export const PRIVACY_URL = `${WEB_URL}/privacy`;
 export const STRIPE_KEY = process.env.EXPO_PUBLIC_STRIPE_KEY ?? extra.stripePublishableKey ?? "";

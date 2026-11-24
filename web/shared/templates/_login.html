@@ -4,11 +4,9 @@
   <div style="text-align:center;margin-bottom:14px">
     <div class="logo" style="justify-content:center;padding:0 0 6px"><i>F</i><span>FreshFlow</span></div>
     <div class="muted" style="font-size:.9rem">Groceries in minutes · Scan & Go in store</div>
-    <div class="muted" style="font-size:.85rem;margin-top:4px">Shoppers, store staff and admins all sign in here — your account opens the right app.</div>
+    <div class="muted" style="font-size:.85rem;margin-top:4px">Shoppers, store staff and admins all sign in here. We open the right section for you.</div>
   </div>
   {% include "_flash.html" %}
-  {% set switched = request.query_params.get('switched') %}
-  {% if switched in ['customer', 'store', 'admin'] %}<div class="flash ok">Your account opens the {{ {'customer': 'shopping site', 'store': 'Store Operations dashboard', 'admin': 'Admin dashboard'}[switched] }}, so we brought you here. Sign in once more to continue.</div>{% endif %}
 
   {% set nq = ('&next=' ~ (next|urlencode)) if next and next != '/' else '' %}
   <div class="row" role="tablist" style="gap:6px;margin-bottom:14px">

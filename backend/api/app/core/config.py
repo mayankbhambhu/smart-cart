@@ -55,8 +55,7 @@ class Settings(BaseSettings):
     OIDC_LABEL: str = "Sign in with company SSO"
     API_PUBLIC_URL: str = "http://localhost:8000"  # the IdP redirects back to {API_PUBLIC_URL}/auth/sso/callback
     # Where a finished SSO sign-in may return to (URL prefixes). Remove exp:// in production.
-    SSO_ALLOWED_REDIRECTS: str = ("http://localhost:8001/,http://localhost:8002/,http://localhost:8003/,"
-                                  "freshflow://,exp://")
+    SSO_ALLOWED_REDIRECTS: str = "http://localhost:8001/,freshflow://,exp://"
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""  # only for plain SMS (not needed with Verify)

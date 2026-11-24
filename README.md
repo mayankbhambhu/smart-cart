@@ -8,19 +8,22 @@ A full-stack grocery platform in the style of 10-minute delivery apps, extended 
 > tap **Checkout**, pay with Apple Pay / Google Pay / UPI → scan your receipt QR at the exit
 > gate and walk out. No lines, no cashier.
 
-Built mainly in **Python** (FastAPI API + three server-rendered FastAPI/Jinja2 dashboards).
+Built mainly in **Python** (FastAPI API + a server-rendered FastAPI/Jinja2 website).
 The iOS/Android app is **React Native (Expo)**, since native payment sheets, camera barcode
 scanning and Apple/Google sign-in need a native mobile toolkit.
 
 | App | Who uses it | Local URL | Code |
 |---|---|---|---|
 | **API** (REST + WebSocket) | everything talks to it | http://localhost:8000/docs | `backend/api/` |
-| **Customer dashboard** | shoppers (web) | http://localhost:8001 | `backend/web/customer/` + `web/customer/` |
-| **Store Operations dashboard** | owner · store manager · floor manager · worker | http://localhost:8002 | `backend/web/store/` + `web/store/` |
-| **Admin Operations dashboard** | you + your team | http://localhost:8003 | `backend/web/admin/` + `web/admin/` |
-| **Mobile app** (iOS + Android) | shoppers | Expo | `app/` |
+| **Website**: one address, one login page | everyone | http://localhost:8001 | `backend/web/` + `web/` |
+| ↳ Shop | shoppers | `/` | `backend/web/customer/` + `web/customer/` |
+| ↳ Store Operations | owner · store manager · floor manager · worker | `/store` | `backend/web/store/` + `web/store/` |
+| ↳ Admin | you + your team | `/admin` | `backend/web/admin/` + `web/admin/` |
+| **Mobile app** (iOS + Android) | everyone | Expo | `app/` |
 
-Each dashboard is a separate app with its own URL (its own "live link") and they all share one API and database.
+The website has **one address and one login page**. After signing in, the role on the account decides which
+section opens: shoppers get the shop, store staff get `/store`, admins get `/admin`. The website and the
+phone app share one API and database.
 
 ---
 
@@ -92,7 +95,7 @@ the same API in `backend/api`. The app has no server of its own, so there is no 
 smart-cart/
 ├── README.md
 ├── .env.example                 # every setting, documented
-├── docker-compose.yml           # Postgres + API + 3 dashboards
+├── docker-compose.yml           # Postgres + API + website
 ├── render.yaml                  # one-click cloud deploy: 4 services = 4 live links
 ├── scripts/
 │   ├── dev.sh                   # run everything locally (seeds demo data)
@@ -145,12 +148,13 @@ smart-cart/
 │   │   │       └── ws.py        # WebSocket endpoint with per-channel authorisation
 │   │   └── tests/               # pytest: 31 tests, run on SQLite and PostgreSQL
 │   │
-│   └── web/                     # ── the server side of the 3 dashboards (FastAPI + Jinja2)
+│   └── web/                     # ── the website's server side (FastAPI + Jinja2)
+│       ├── main.py              # one website: mounts the shop at /, /store and /admin
 │       ├── Dockerfile           # one image, APP=customer|store|admin (build from the repo root)
 │       ├── requirements.txt
 │       ├── shared/
-│       │   ├── __init__.py      # API client, session auth, role → dashboard hand-off, ₹ formatting
-│       │   └── signin.py        # the one login page for all three dashboards
+│       │   ├── __init__.py      # API client, shared sign-in session, role → section, ₹ formatting
+│       │   └── signin.py        # the one login page for everybody
 │       ├── customer/app.py      # shop, cart, pay, Scan & Go, lists, orders, profile
 │       ├── store/app.py         # overview, tasks, inventory, orders, gate, shifts, attendance,
 │       │                        # team & onboarding, analysis, offers, support
@@ -189,15 +193,15 @@ Everyone signs in on the same login screen. The **role stored on the account** d
 
 | Account role | Phone app opens | Website |
 |---|---|---|
-| `customer` | Shopping app (shop, Scan & Go, family lists, orders) | Customer site (8001) |
-| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`app/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (8002) |
-| `admin` | **Admin** (`app/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (8003) |
+| `customer` | Shopping app (shop, Scan & Go, family lists, orders) | Shop (`/`) |
+| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`app/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (`/store`) |
+| `admin` | **Admin** (`app/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (`/admin`) |
 
-The routing lives in `app/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. The websites work the same way: all three show the **same login page** (Email · Phone OTP · Sign up, plus Google, email link and SSO; the code is in `backend/web/shared/signin.py`, the page in `web/shared/templates/_login.html`). If you sign in on a website that isn't the one for your role, you're moved to the right one, already signed in, with a "Signed in as … · opening …" note. This uses a one-minute single-use code (dashboard addresses: `CUSTOMER_APP_URL`, `STORE_APP_URL`, `ADMIN_APP_URL`).
+The routing lives in `app/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. The website works the same way: one address and **one login page** (Email · Phone OTP · Sign up, plus Google, email link and SSO; the code is in `backend/web/shared/signin.py`, the page in `web/shared/templates/_login.html`). After signing in you go straight to your section, and opening another section's page sends you back to your own. `backend/web/main.py` puts the three sections together; they share one sign-in cookie, so logging out once logs you out everywhere.
 
 ## Sign-in options
 
-The login screen (phone app and all three websites) offers: **email + password**, **phone OTP**,
+The login screen (phone app and website) offers: **email + password**, **phone OTP**,
 **Sign in with Google**, **Email me a sign-in link** (Firebase magic link), **single sign-on (SSO)**
 and, on iPhone, **Sign in with Apple**. Each button switches on as soon as its settings are filled in
 (`GET /auth/providers` tells the apps what is enabled); until then it shows "not set up". Whatever
@@ -213,7 +217,7 @@ the method, the **role on the account** still decides which app opens.
 Removed (deactivated) employees are refused by every method.
 
 **Google:** in Google Cloud Console → *APIs & Services → Credentials*, create an OAuth client of type
-*Web application*. Add each website's address (e.g. `http://localhost:8001`) under *Authorized
+*Web application*. Add the website's address (e.g. `http://localhost:8001`) under *Authorized
 JavaScript origins*. For the phone app also create iOS and Android clients. Put the web one in
 `GOOGLE_WEB_CLIENT_ID`, and give the app its IDs through `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`,
 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`. Google sign-in on the
@@ -257,14 +261,15 @@ to the website or app, never the session token. Return addresses must start with
 ./scripts/dev.sh
 ```
 
-That creates a virtualenv, seeds demo data into SQLite and starts all four servers.
+That creates a virtualenv, seeds demo data into SQLite and starts the API and the website.
+Open **http://localhost:8001** and sign in with any account below. The website opens the right section for it.
 Every demo account uses the password **`Password@123`**:
 
-| Dashboard | Logins |
+| Opens | Logins |
 |---|---|
-| Customer (8001) | `asha@example.com`, `rohan@example.com` (they share the *Verma Family Weekly* list) |
-| Store Ops (8002) | `owner.blr01@freshflow.app`, `manager.blr01@…`, `floor1.blr01@…`, `worker1.blr01@…` (also `blr02`, `mum01`) |
-| Admin (8003) | `admin@freshflow.app` |
+| Shop (`/`) | `asha@example.com`, `rohan@example.com` (they share the *Verma Family Weekly* list) |
+| Store Operations (`/store`) | `owner.blr01@freshflow.app`, `manager.blr01@…`, `floor1.blr01@…`, `worker1.blr01@…` (also `blr02`, `mum01`) |
+| Admin (`/admin`) | `admin@freshflow.app` |
 
 **Try the headline flow:** log in as Rohan → **Scan & Go** → pick a store. In a second
 browser, log in as Asha and add "Curd" to the family list. Rohan's route re-plans live. Tap
@@ -326,7 +331,7 @@ cd backend/api && TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_t
 .venv/bin/python scripts/smoke_test.py
 ```
 
-The smoke test needs all four servers running (`./scripts/dev.sh`).
+The smoke test needs the API and the website running (`./scripts/dev.sh`). It also checks that every role lands in the right section and can't open the others.
 
 ```bash
 cd app && npx tsc --noEmit
@@ -345,8 +350,8 @@ cd app && npx tsc --noEmit
 | Production secrets | `SECRET_KEY`, `SESSION_SECRET`, `DEBUG=false`, `CORS_ORIGINS` | insecure defaults |
 
 **Deploy:** push to GitHub, then on Render choose *New → Blueprint* and pick `render.yaml`.
-That creates the database, the API and three dashboard services, each with its own URL.
-Update `API_URL` / `PUBLIC_API_URL` if your API URL differs.
+That creates the database, the API and the website. Update `API_URL` / `PUBLIC_API_URL` if your API URL differs
+(step-by-step: `app/store-listing/PLAY_STORE_GUIDE.md`, step 1).
 
 ## Publishing the phone app on Google Play
 
@@ -355,7 +360,7 @@ Store texts, form answers and graphics: [`app/store-listing/`](app/store-listing
 Android package ID: `com.mayankbhambhu.freshflow`.
 
 What's already in place for Google Play's rules:
-* A public privacy policy at `/privacy` on every website, linked from the app's login and profile screens.
+* A public privacy policy at `/privacy` on the website, linked from the app's login and profile screens.
 * Account deletion in the app (Profile → Delete my account) and on the web (`/account/delete`), via `POST /me/delete`.
   It erases the shopper's personal data and keeps past orders anonymously.
 * Only the permissions the app needs: internet, vibration, camera (barcodes, no microphone) and location (store finder).

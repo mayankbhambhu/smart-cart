@@ -62,7 +62,7 @@ Your privacy matters: no ads, no selling of your data, and you can delete your a
 
 **Category:** Shopping
 **Contact email:** an email address you check (it's shown publicly on the store page)
-**Privacy policy:** `https://<your customer website>/privacy`, e.g. `https://freshflow-shop.onrender.com/privacy`
+**Privacy policy:** `https://<your website>/privacy`, e.g. `https://freshflow-web.onrender.com/privacy`
 
 ---
 
@@ -107,7 +107,7 @@ option if Play Console offers it. If you're unsure, read Google's description of
 |---|---|
 | Does your app collect or share any of the required user data types? | Yes |
 | Is all of the user data collected by your app encrypted in transit? | Yes (HTTPS) |
-| Do you provide a way for users to request that their data is deleted? | Yes: in the app (Profile → Delete my account) and at `https://<your customer website>/account/delete` |
+| Do you provide a way for users to request that their data is deleted? | Yes: in the app (Profile → Delete my account) and at `https://<your website>/account/delete` |
 
 **Data types**: tick these. For each one: *Collected* = Yes, *Shared* = No (payment, SMS and hosting
 providers count as service providers, not sharing), *Processed ephemerally* = No unless stated.

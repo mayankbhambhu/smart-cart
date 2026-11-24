@@ -9,7 +9,7 @@
     <td><small>{% for i in o['items'] %}{{ i.quantity }}× {{ i.name }} <span class="muted">{{ i.location }}</span><br>{% endfor %}</small></td>
     <td>{{ o.total|inr }}</td><td><span class="badge {{ o.status }}">{{ o.status|nice }}</span>{% if o.exit_verified_at %}<br><small>exit ✓</small>{% endif %}</td>
     <td>{% set nxt = {'preparing': ('ready' if o.fulfilment == 'pickup' else 'out_for_delivery'), 'out_for_delivery': 'completed', 'ready': 'completed'}.get(o.status) %}
-      {% if nxt %}<form method="post" action="/orders/{{ o.id }}/status"><input type="hidden" name="status" value="{{ nxt }}"><button class="btn sm">→ {{ nxt|nice }}</button></form>{% endif %}</td></tr>
+      {% if nxt %}<form method="post" action="{{ P }}/orders/{{ o.id }}/status"><input type="hidden" name="status" value="{{ nxt }}"><button class="btn sm">→ {{ nxt|nice }}</button></form>{% endif %}</td></tr>
   {% else %}<tr><td colspan="7" class="empty">No orders</td></tr>{% endfor %}
 </table></div>
 {% endblock %}
