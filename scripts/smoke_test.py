@@ -62,7 +62,7 @@ for p in ["/", "/?q=milk", "/?diet=1", "/cart", "/lists", "/lists/1", "/lists/1/
 check(cu, "/cart/setup", "customer", "post", {"store_id": 1, "mode": "instore"})
 check(cu, "/instore", "customer instore")
 check(cu, "/instore/pick/1/1", "pick", "post", {"product_id": 8, "quantity": 2})
-check(cu, "/cart/scan", "scan", "post", {"code": "8900000000024"})
+check(cu, "/cart/scan", "scan", "post", {"code": "8900000000241"})
 r = check(cu, "/checkout", "checkout", "post", {"payment_method": "upi"})
 oid = re.search(r"/pay/(\d+)/confirm", r.text).group(1)
 r = check(cu, f"/pay/{oid}/confirm", "pay", "post", {})

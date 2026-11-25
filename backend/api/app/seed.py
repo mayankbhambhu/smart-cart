@@ -120,6 +120,12 @@ def _unique_number(ts) -> str:
             return n
 
 
+def ean13(body12: str) -> str:
+    """A valid EAN-13 barcode: 12 digits plus the check digit that real scanners verify."""
+    total = sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(body12))
+    return body12 + str((10 - total % 10) % 10)
+
+
 def seed(db):
     cats = [Category(name=n, icon=i) for n, i in CATEGORIES]
     db.add_all(cats)
@@ -127,7 +133,7 @@ def seed(db):
 
     products = []
     for idx, (name, brand, ci, unit, price, tags) in enumerate(PRODUCTS, start=1):
-        p = Product(sku=f"SKU{idx:05d}", barcode=f"890{idx:010d}", name=name, brand=brand, category_id=cats[ci].id,
+        p = Product(sku=f"SKU{idx:05d}", barcode=ean13(f"890{idx:09d}"), name=name, brand=brand, category_id=cats[ci].id,
                     unit=unit, price=price, mrp=round(price * random.choice([1, 1.05, 1.1, 1.15])),
                     cost_price=round(price * random.uniform(0.68, 0.82), 2), tags=tags,
                     description=f"{brand} {name}, {unit}.")
@@ -293,7 +299,11 @@ def seed(db):
 def main():
     reset = "--reset" in sys.argv
     if reset:
-        Base.metadata.drop_all(bind=engine)
+        with engine.connect() as conn:
+            if engine.dialect.name == "sqlite":  # stores and users point at each other; drop without FK checks
+                conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            Base.metadata.drop_all(bind=conn)
+            conn.commit()
     init_db()
     with SessionLocal() as db:
         if db.query(User).first():

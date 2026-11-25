@@ -3,7 +3,8 @@
 <div class="topbar">
   <div><h1>📱 Scan & Go · {{ store.name }}</h1><span class="muted">Items you add come off the shelf stock instantly. Pay on your phone and walk out.</span></div>
   <form method="get" class="row"><label style="margin:0">Route for</label>
-    <select name="list_id" onchange="this.form.submit()">{% for l in lists %}<option value="{{ l.id }}" {{ 'selected' if l.id == list_id }}>{{ l.name }}</option>{% endfor %}</select></form>
+    {% if lists %}<select name="list_id" onchange="this.form.submit()">{% for l in lists %}<option value="{{ l.id }}" {{ 'selected' if l.id == list_id }}>{{ l.name }}</option>{% endfor %}</select>
+    {% else %}<a href="/lists">Create a shopping list to get your aisle route →</a>{% endif %}</form>
 </div>
 <div class="split">
   <div>
@@ -31,8 +32,16 @@
   </div>
   <div class="card" style="position:sticky;top:80px">
     <h2>Smart cart</h2>
-    <form method="post" action="/cart/scan" class="row" style="margin-bottom:12px">
-      <input name="code" placeholder="Scan barcode or type item" style="flex:1" autofocus><button class="btn">Add</button></form>
+    <form method="post" action="/cart/scan" class="row" style="margin-bottom:12px" id="scan-form">
+      <input name="code" id="scan-code" placeholder="Scan barcode or type item" style="flex:1" autofocus>
+      <button type="button" class="btn sec" id="scan-cam" title="Scan with camera" aria-label="Scan with camera">📷</button>
+      <button class="btn">Add</button></form>
+    <div id="scanner" hidden style="margin-bottom:12px">
+      <div id="scanner-view" style="border-radius:12px;overflow:hidden;background:#000"></div>
+      <div class="row between" style="margin-top:8px"><small class="muted" id="scanner-msg">Point the camera at a product barcode</small>
+        <button type="button" class="btn ghost sm" id="scan-stop">Cancel</button></div>
+    </div>
+    <p style="margin:-4px 0 12px;font-size:.8rem"><a href="/barcodes" target="_blank">No product labels? Open the demo barcode sheet ↗</a></p>
     {% for i in cart['items'] %}<div class="summary-line"><span>{{ i.quantity }}× {{ i.name }}</span><span>{{ i.line_total|inr }}</span></div>{% else %}<p class="muted">Nothing in your cart yet.</p>{% endfor %}
     {% if cart.discount %}<div class="summary-line" style="color:var(--brand)"><span>Discount</span><span>−{{ cart.discount|inr }}</span></div>{% endif %}
     <div class="summary-line"><span>GST</span><span>{{ cart.tax|inr }}</span></div>
@@ -43,7 +52,38 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}<script>
+{% block scripts %}<script src="/static/vendor/html5-qrcode.min.js"></script>
+<script>
+// 📷 camera barcode scanner: the first barcode it reads goes into the smart cart, like the phone app.
+(() => {
+  const box = document.getElementById('scanner'), msg = document.getElementById('scanner-msg');
+  const form = document.getElementById('scan-form'), input = document.getElementById('scan-code');
+  let scanner = null, done = false;
+  const stop = async () => { if (scanner) { try { await scanner.stop(); } catch (e) {} scanner.clear(); scanner = null; } box.hidden = true; };
+  document.getElementById('scan-stop').onclick = stop;
+  document.getElementById('scan-cam').onclick = async () => {
+    if (scanner) return stop();
+    box.hidden = false; done = false; msg.textContent = 'Point the camera at a product barcode';
+    if (!window.isSecureContext || !navigator.mediaDevices) {
+      msg.textContent = 'The camera only works on https:// or http://localhost. Type the barcode instead.'; return;
+    }
+    const F = Html5QrcodeSupportedFormats;
+    scanner = new Html5Qrcode('scanner-view', { verbose: false, formatsToSupport:
+      [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.QR_CODE] });
+    try {
+      await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 140 } }, async (text) => {
+        if (done) return; done = true;
+        msg.textContent = 'Found ' + text + ', adding…';
+        input.value = text; await stop(); form.submit();
+      });
+    } catch (e) {
+      msg.textContent = 'Could not open the camera (' + (e && e.name ? e.name : 'blocked') + '). Allow camera access in your browser, or type the barcode.';
+      scanner = null;
+    }
+  };
+})();
+</script>
+<script>
 window.onLive = (e) => {
   if (e.channel.startsWith('list:')) {
     const f = document.getElementById('list-feed'); if (!f) return;

@@ -61,7 +61,7 @@ def test_instore_scan_and_go(client, login):
     assert cart["items"][0]["location"].startswith("Aisle")
     with SessionLocal() as db:  # smart cart deducts immediately
         assert db.query(Inventory).filter_by(store_id=1, product_id=8).one().quantity == before - 2
-    cart = client.post("/cart/items", json={"barcode": "8900000000024", "quantity": 1}, headers=h).json()
+    cart = client.post("/cart/items", json={"barcode": "8900000000241", "quantity": 1}, headers=h).json()
     assert cart["item_count"] == 3 and cart["total"] > 0
 
     r = client.post("/checkout", json={"payment_method": "upi"}, headers=h).json()

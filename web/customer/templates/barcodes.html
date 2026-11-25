@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="topbar">
+  <div><h1>🏷️ Demo barcode sheet</h1><span class="muted">Show this page on another screen, or print it, then scan the barcodes with 📷 on Scan & Go or in the phone app.</span></div>
+  <div class="row"><a class="btn sec" href="/instore">← Scan & Go</a><button class="btn" onclick="window.print()">Print</button></div>
+</div>
+<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+  {% for p in products %}<div class="card" style="text-align:center;break-inside:avoid">
+    {{ ean13_svg(p.barcode or '') }}
+    <div style="font-weight:700;margin-top:6px">{{ p.name }}</div><small class="muted">{{ p.brand }} · {{ p.unit }} · {{ p.price|inr }}</small>
+  </div>{% else %}<p class="muted">No products at this store.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ It also owns the one login page for everybody. Mounted by web/main.py."""
 
 from fastapi import Form, Request
 from fastapi.responses import RedirectResponse, Response
+from markupsafe import Markup
 
 from web.shared.signin import add_signin_routes
 from web.shared import WEB_UI_DIR, Api, ApiError, api_for, back, flash, login_required, make_app, render
@@ -236,6 +237,40 @@ async def stores_page(request: Request, q: str = "", lat: float | None = None, l
     api = api_for(request)
     return page(request, "stores.html", stores=api.get("/stores", lat=lat, lng=lng), q=q, lat=lat, lng=lng,
                 stock=api.get("/stock-check", q=q, lat=lat, lng=lng) if q else None)
+
+
+# ---- demo barcode sheet -------------------------------------------------------------------
+_EAN_L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"]
+_EAN_G = ["0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111"]
+_EAN_PARITY = ["LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL"]
+
+
+def ean13_svg(code: str) -> Markup:
+    """An EAN-13 barcode as inline SVG, so the demo products can be scanned from a screen or paper."""
+    if not (len(code) == 13 and code.isdigit()):
+        return Markup("")
+    right = ["".join("1" if c == "0" else "0" for c in x) for x in _EAN_L]
+    bits = "101" + "".join((_EAN_L if _EAN_PARITY[int(code[0])][i] == "L" else _EAN_G)[int(d)]
+                           for i, d in enumerate(code[1:7]))
+    bits += "01010" + "".join(right[int(d)] for d in code[7:]) + "101"
+    bars = "".join(f'<rect x="{10 + i * 2}" y="4" width="2" height="70"/>' for i, b in enumerate(bits) if b == "1")
+    return Markup(f'<svg viewBox="0 0 {len(bits) * 2 + 20} 92" width="210" role="img" aria-label="Barcode {code}">'
+                  f'<rect width="100%" height="100%" fill="#fff"/><g fill="#000">{bars}</g>'
+                  f'<text x="50%" y="88" text-anchor="middle" font-size="12" font-family="monospace">{code}</text></svg>')
+
+
+@app.get("/barcodes")
+@login_required(CUSTOMER)
+async def barcode_sheet(request: Request):
+    """Every product's barcode at your current store: show it on another screen or print it, then
+    scan it with Scan & Go (handy for demos without real product labels)."""
+    api = api_for(request)
+    cart = api.get("/cart")
+    return page(request, "barcodes.html", store_id=cart["store_id"],
+                products=api.get(f"/stores/{cart['store_id']}/products", limit=200))
+
+
+templates.env.globals["ean13_svg"] = ean13_svg
 
 
 # ---- orders ----------------------------------------------------------------------------
