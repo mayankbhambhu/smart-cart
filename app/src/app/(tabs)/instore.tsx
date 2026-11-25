@@ -12,7 +12,7 @@ import type { Cart, ListSummary, Route, Store } from "@/lib/types";
 
 /** Scan & Go: family list -> optimised aisle route -> smart cart -> pay on phone -> walk out. */
 export default function InStore() {
-  const { cart, setup, replace, refresh } = useCart();
+  const { cart, setup, replace, refresh, setQty } = useCart();
   const [stores, setStores] = useState<Store[]>([]);
   const [lists, setLists] = useState<ListSummary[]>([]);
   const [listId, setListId] = useState<number | null>(null);
@@ -111,7 +111,27 @@ export default function InStore() {
           <Button small title="📷" variant="secondary" onPress={() => router.push("/scan")} />
           <Button small title="Add" onPress={addCode} />
         </Row>
-        {cart.items.map((i) => <SummaryLine key={i.product_id} label={`${i.quantity}× ${i.name}`} value={inr(i.line_total)} />)}
+        {cart.items.map((i) => (
+          <View key={i.product_id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6, gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, color: colors.ink }} numberOfLines={2}>{i.name}</Text>
+              <Text style={{ fontSize: 13, color: colors.ink2 }}>{inr(i.line_total)}</Text>
+            </View>
+            {/* − / + change the quantity; at 1, − removes the item. Stock goes back on the shelf. */}
+            <View style={{ flexDirection: "row", alignItems: "center", borderRadius: 10, backgroundColor: colors.brand }}>
+              <Pressable accessibilityLabel={`One less ${i.name}`} hitSlop={6} style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+                onPress={() => { Haptics.selectionAsync().catch(() => {}); setQty(i.product_id, i.quantity - 1); }}>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>−</Text></Pressable>
+              <Text style={{ color: "#fff", fontWeight: "800", minWidth: 18, textAlign: "center" }}>{i.quantity}</Text>
+              <Pressable accessibilityLabel={`One more ${i.name}`} hitSlop={6} style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+                onPress={() => { Haptics.selectionAsync().catch(() => {}); setQty(i.product_id, i.quantity + 1); }}>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 16 }}>+</Text></Pressable>
+            </View>
+            <Pressable accessibilityLabel={`Remove ${i.name}`} hitSlop={8} style={{ padding: 6 }}
+              onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}); setQty(i.product_id, 0); }}>
+              <Text style={{ fontSize: 18, color: colors.danger }}>✕</Text></Pressable>
+          </View>))}
+        {!!cart.items.length && <Muted>Put an item back on the shelf? Tap ✕ or −.</Muted>}
         {!cart.items.length && <Muted>Nothing in your cart yet.</Muted>}
         {cart.discount > 0 && <SummaryLine label="Discount" value={`−${inr(cart.discount)}`} />}
         <SummaryLine label="GST" value={inr(cart.tax)} />

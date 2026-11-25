@@ -42,7 +42,15 @@
         <button type="button" class="btn ghost sm" id="scan-stop">Cancel</button></div>
     </div>
     <p style="margin:-4px 0 12px;font-size:.8rem"><a href="/barcodes" target="_blank">No product labels? Open the demo barcode sheet ↗</a></p>
-    {% for i in cart['items'] %}<div class="summary-line"><span>{{ i.quantity }}× {{ i.name }}</span><span>{{ i.line_total|inr }}</span></div>{% else %}<p class="muted">Nothing in your cart yet.</p>{% endfor %}
+    {% for i in cart['items'] %}<div class="summary-line" style="align-items:center;gap:8px">
+      <span style="flex:1">{{ i.name }}<br><small class="muted">{{ i.line_total|inr }}</small></span>
+      <div class="qty">
+        <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity - 1 }}"><button aria-label="One less {{ i.name }}">−</button></form>
+        <span>{{ i.quantity }}</span>
+        <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity + 1 }}"><button aria-label="One more {{ i.name }}">+</button></form></div>
+      <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="0"><button class="btn ghost sm" style="color:var(--danger)" aria-label="Remove {{ i.name }}" title="Remove">✕</button></form>
+    </div>{% else %}<p class="muted">Nothing in your cart yet.</p>{% endfor %}
+    {% if cart['items'] %}<small class="muted">Put an item back on the shelf? Click ✕ or −.</small>{% endif %}
     {% if cart.discount %}<div class="summary-line" style="color:var(--brand)"><span>Discount</span><span>−{{ cart.discount|inr }}</span></div>{% endif %}
     <div class="summary-line"><span>GST</span><span>{{ cart.tax|inr }}</span></div>
     <div class="summary-line total"><span>Total</span><span>{{ cart.total|inr }}</span></div>
