@@ -71,6 +71,11 @@ img = cu.get(f"/orders/{oid}/receipt.png")
 assert img.headers["content-type"] == "image/png"
 check(cu, "/cart/setup", "customer", "post", {"store_id": 1, "mode": "pickup"})
 check(cu, "/cart", "pickup cart")
+r = cu.get("/stores", params={"q": "milk"})
+sid, pid = re.search(r'name="store_id" value="(\d+)"><input type="hidden" name="product_id" value="(\d+)"', r.text).groups()
+r = check(cu, "/stock/add", "stock-check Add", "post", {"store_id": sid, "product_id": pid, "product": "Milk"})
+if "Added Milk" not in r.text:
+    fails.append(("stock-check Add", "no confirmation", r.status_code, r.text[:200]))
 
 # ---- Store Operations (/store) ----------------------------------------------------------------
 for email in ["owner.blr01@freshflow.app", "manager.blr01@freshflow.app", "floor1.blr01@freshflow.app",

@@ -1,17 +1,25 @@
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
-import { Linking, ScrollView, Text } from "react-native";
+import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { Badge, Button, Card, H2, Input, Muted, Row, s } from "@/components/ui";
 import { api, logError } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { inr } from "@/lib/theme";
 import type { Store } from "@/lib/types";
 
-type StockRow = { store_id: number; store_name: string; product: string; quantity: number; in_stock: boolean; location: string; price: number; distance_km: number | null };
+type StockRow = { store_id: number; store_name: string; product: string; product_id: number; quantity: number; in_stock: boolean; location: string; price: number; distance_km: number | null };
 
 /** Store locator + "is it in stock before I leave home?" */
 export default function Stores() {
-  const { setup } = useCart();
+  const { setup, addFromStore } = useCart();
+  const [adding, setAdding] = useState<string | null>(null);
+  const add = async (r: StockRow) => {
+    const key = `${r.store_id}-${r.product_id}`;
+    setAdding(key);
+    try { Alert.alert(`Added ${r.product}`, await addFromStore(r.store_id, r.product_id)); }
+    catch (e) { Alert.alert("Couldn't add", (e as Error).message); }
+    finally { setAdding(null); }
+  };
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [q, setQ] = useState("");
@@ -36,7 +44,10 @@ export default function Stores() {
         {stock?.map((r, i) => (
           <Row key={i} style={{ justifyContent: "space-between", paddingVertical: 8 }}>
             <Text style={{ flex: 1 }}>{r.store_name}{"\n"}<Text style={{ fontSize: 12 }}>{r.product} · {r.location} · {inr(r.price)}</Text></Text>
-            <Badge text={r.in_stock ? `${r.quantity} in stock` : "Out"} tone={r.in_stock ? "ok" : "danger"} />
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <Badge text={r.in_stock ? `${r.quantity} in stock` : "Out"} tone={r.in_stock ? "ok" : "danger"} />
+              <Button small title="Add" disabled={!r.in_stock} loading={adding === `${r.store_id}-${r.product_id}`} onPress={() => add(r)} />
+            </View>
           </Row>))}
         {stock && !stock.length && <Muted>Not found in any store.</Muted>}
       </Card>

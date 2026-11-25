@@ -236,7 +236,7 @@ async def delete_list(request: Request, list_id: int):
 async def stores_page(request: Request, q: str = "", lat: float | None = None, lng: float | None = None):
     api = api_for(request)
     return page(request, "stores.html", stores=api.get("/stores", lat=lat, lng=lng), q=q, lat=lat, lng=lng,
-                stock=api.get("/stock-check", q=q, lat=lat, lng=lng) if q else None)
+                stock=api.get("/stock-check", q=q, lat=lat, lng=lng) if q else None, cart=api.get("/cart"))
 
 
 # ---- demo barcode sheet -------------------------------------------------------------------
@@ -271,6 +271,29 @@ async def barcode_sheet(request: Request):
 
 
 templates.env.globals["ean13_svg"] = ean13_svg
+
+
+@app.post("/stock/add")
+@login_required(CUSTOMER)
+async def stock_add(request: Request, store_id: int = Form(...), product_id: int = Form(...), product: str = Form("")):
+    """"Add" on a stock-check result. The cart belongs to one store, so adding an item from another
+    store moves the cart there first (as a pickup order), unless a Scan & Go trip is in progress."""
+    api = api_for(request)
+    cart = api.get("/cart")
+    note = ""
+    if cart["store_id"] != store_id:
+        if cart["mode"] == "instore" and cart["items"]:
+            flash(request, f"You're shopping in-store at {cart['store_name']}. Check out or empty that cart "
+                           f"before adding items from another store.", "error")
+            return back(request)
+        before = cart["item_count"]
+        cart = api.post("/cart/setup", {"store_id": store_id, "mode": "pickup" if cart["mode"] == "instore" else cart["mode"]})
+        note = f" Your cart is now at {cart['store_name']}."
+        if cart["item_count"] < before:
+            note += " Items that store doesn't stock were removed."
+    cart = api.post("/cart/items", {"product_id": product_id, "quantity": 1})
+    flash(request, f"Added {product or 'item'} to your cart · {cart['item_count']} item{'' if cart['item_count'] == 1 else 's'} · total {cart['total']:.2f}.{note}")
+    return back(request)
 
 
 # ---- orders ----------------------------------------------------------------------------
