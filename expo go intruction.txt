@@ -8,8 +8,4 @@ Scan the QR code in Expo Go.
 
 
 
-only for me
-SMSGATE_USERNAME=sms
-SMSGATE_PASSWORD=LH1mMOBp
-SMSGATE_URL=http://192.168.1.5:8080/message
 
