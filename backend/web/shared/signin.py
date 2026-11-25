@@ -7,7 +7,7 @@ from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from web.shared import (PUBLIC_API_URL, ROLE_NAMES, SECTION_NAMES, SHOW_DEMO_ACCOUNTS, SITE_URL, Api, ApiError,
+from web.shared import (PUBLIC_API_URL, ROLE_NAMES, SECTION_NAMES, SITE_URL, Api, ApiError,
                         app_for_role, finish_login, flash, home_for, render)
 
 APP_LINK_SCHEMES = ("exp://", "freshflow://")  # the phone app (Expo Go in development, the built app later)
@@ -19,14 +19,6 @@ def _json_login(request: Request, api_path: str, body: dict) -> JSONResponse:
     except ApiError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     return JSONResponse({"redirect": finish_login(request, payload)})
-
-
-DEMO_ACCOUNTS = [  # (email, role shown on the login page)
-    ("asha@example.com", "Shopper"), ("rohan@example.com", "Shopper · same family list"),
-    ("worker1.blr01@freshflow.app", "Floor Assistant"), ("floor1.blr01@freshflow.app", "Floor Manager"),
-    ("manager.blr01@freshflow.app", "Store Manager"), ("owner.blr01@freshflow.app", "Store Owner"),
-    ("admin@freshflow.app", "Platform Admin"),
-]
 
 
 def add_signin_routes(app: FastAPI, templates: Jinja2Templates) -> None:
@@ -42,7 +34,7 @@ def add_signin_routes(app: FastAPI, templates: Jinja2Templates) -> None:
             mode = "email"
         return render(templates, request, "_login.html", next=next, mode=mode,
                       otp_step=step == "verify" and bool(request.session.get("otp_phone")),
-                      otp_phone=request.session.get("otp_phone"), demo_accounts=DEMO_ACCOUNTS if SHOW_DEMO_ACCOUNTS else [])
+                      otp_phone=request.session.get("otp_phone"))
 
     @app.post("/login")
     async def login(request: Request, identifier: str = Form(...), password: str = Form(...), next: str = Form("/")):

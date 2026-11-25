@@ -82,7 +82,6 @@ export default function Login() {
           <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 32, fontWeight: "900" }}>F</Text></View>
           <H1>FreshFlow</H1><Muted>Groceries in minutes · Scan & Go in store</Muted>
-          <Muted>Shoppers, store staff and admins all sign in here — your account opens the right app.</Muted>
         </View>
         <Card>
           <Row style={{ marginBottom: 12 }}>
@@ -132,10 +131,7 @@ export default function Login() {
         <Pressable onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}>
           <Muted>By continuing you agree to our <Text style={{ textDecorationLine: "underline" }}>privacy policy</Text>.</Muted>
         </Pressable>
-        {__DEV__ && <>
-          <Muted>Demo (password Password@123): asha@example.com · manager.blr01@freshflow.app · worker1.blr01@freshflow.app · admin@freshflow.app</Muted>
-          <Muted>Server: {API_URL}</Muted>
-        </>}
+        {__DEV__ && <Muted>Server: {API_URL}</Muted>}
       </ScrollView>
     </KeyboardAvoidingView>
   );

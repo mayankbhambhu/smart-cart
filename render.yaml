@@ -34,5 +34,4 @@ services:
       - { key: API_URL, value: https://freshflow-api.onrender.com }
       - { key: PUBLIC_API_URL, value: https://freshflow-api.onrender.com }
       - { key: SESSION_SECRET, generateValue: true }
-      - { key: SHOW_DEMO_ACCOUNTS, value: "false" }
       - { key: SUPPORT_EMAIL, sync: false }   # your contact email, asked for when you create the Blueprint

@@ -364,8 +364,8 @@ What's already in place for Google Play's rules:
 * Account deletion in the app (Profile → Delete my account) and on the web (`/account/delete`), via `POST /me/delete`.
   It erases the shopper's personal data and keeps past orders anonymously.
 * Only the permissions the app needs: internet, vibration, camera (barcodes, no microphone) and location (store finder).
-* On the public server (`render.yaml`) the demo accounts get a secret password (`SEED_PASSWORD`) and aren't listed on the login page.
-  The app hides the demo list and server address in store builds.
+* On the public server (`render.yaml`) the demo accounts get a secret password (`SEED_PASSWORD`). Neither the website nor the app lists demo logins on the login page.
+  The app shows its server address only during development (Expo Go), never in store builds.
 
 ## Design notes and limits
 
