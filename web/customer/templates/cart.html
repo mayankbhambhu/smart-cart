@@ -17,7 +17,8 @@
           <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity - 1 }}"><button>−</button></form>
           <span>{{ i.quantity }}</span>
           <form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="{{ i.quantity + 1 }}"><button>+</button></form></div></td>
-        <td style="text-align:right"><b>{{ i.line_total|inr }}</b></td></tr>{% endfor %}
+        <td style="text-align:right"><b>{{ i.line_total|inr }}</b></td>
+        <td style="width:36px"><form method="post" action="/cart/qty"><input type="hidden" name="product_id" value="{{ i.product_id }}"><input type="hidden" name="quantity" value="0"><button class="btn ghost sm" style="color:var(--danger)" aria-label="Remove {{ i.name }}" title="Remove">✕</button></form></td></tr>{% endfor %}
     </table>
     {% if cart['items'] and lists %}<details style="margin-top:12px"><summary>Add from a family list</summary>
       <div class="row" style="margin-top:8px">{% for l in lists %}<form method="post" action="/cart/from-list/{{ l.id }}"><button class="btn sm sec">{{ l.name }} ({{ l.open_count }})</button></form>{% endfor %}</div></details>{% endif %}

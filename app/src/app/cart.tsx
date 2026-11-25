@@ -64,6 +64,8 @@ export default function CartScreen() {
               <Pressable onPress={() => setQty(i.product_id, i.quantity + 1)} style={{ padding: 6 }}><Text style={{ color: "#fff", fontWeight: "800" }}> + </Text></Pressable>
             </Row>
             <Text style={{ width: 70, textAlign: "right", fontWeight: "700" }}>{inr(i.line_total)}</Text>
+            <Pressable accessibilityLabel={`Remove ${i.name}`} hitSlop={8} style={{ padding: 4 }} onPress={() => setQty(i.product_id, 0)}>
+              <Text style={{ fontSize: 17, color: colors.danger }}>✕</Text></Pressable>
           </Row>))}
         {!cart.items.length && <Muted>Your cart is empty.</Muted>}
       </Card>
