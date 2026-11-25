@@ -1,379 +1,429 @@
-# FreshFlow — quick-commerce + Scan & Go in-store shopping
+<div align="center">
 
-A full-stack grocery platform in the style of 10-minute delivery apps, extended with
-**store pickup** and **checkout-free in-store shopping**:
+<img src="app/store-listing/icon-512.png" alt="FreshFlow logo" width="96">
 
-> Your family's shared list syncs live → the app routes you through the aisles
-> (*"Aisle 4, Row 2"*) → items go into your phone's smart cart (shelf stock drops instantly) →
-> tap **Checkout**, pay with Apple Pay / Google Pay / UPI → scan your receipt QR at the exit
-> gate and walk out. No lines, no cashier.
+# FreshFlow
 
-Built mainly in **Python** (FastAPI API + a server-rendered FastAPI/Jinja2 website).
-The iOS/Android app is **React Native (Expo)**, since native payment sheets, camera barcode
-scanning and Apple/Google sign-in need a native mobile toolkit.
+**Shop. Scan. Walk out.**
 
-| App | Who uses it | Local URL | Code |
+Grocery delivery and store pickup, plus **checkout-free in-store shopping**,
+with the tools a supermarket needs to run itself.
+
+Python (FastAPI) · Website (Jinja2 + htmx) · iOS & Android app (React Native / Expo) · PostgreSQL or SQLite
+
+</div>
+
+---
+
+Picture a Saturday evening at the supermarket: you hunt for items, then wait in a long billing queue.
+FreshFlow removes both problems:
+
+> Your family's shared list turns into the **shortest walk through the aisles** ("Aisle 4, Row 2") →
+> you **scan items with your phone** as you shop → you **pay on your phone** (UPI, cards, Google Pay,
+> Apple Pay, PayPal) → you show a **QR receipt at the exit gate** and walk out. No queue, no cashier.
+
+Every scan also updates the store's **live inventory**. The same system gives owners, managers and staff
+their daily tools: tasks, restock alerts, shifts, attendance and sales reports. Admins run the whole platform.
+
+<p align="center">
+  <img src=".github/readme/scan-and-go.png" alt="Scan & Go: aisle route through the store and smart cart" width="900">
+</p>
+
+## Contents
+
+- [What's inside](#whats-inside)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [How it works](#how-it-works)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Sign-in options](#sign-in-options)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Phone app: today and next](#phone-app-today-and-next)
+- [Security and privacy](#security-and-privacy)
+- [Design notes and limits](#design-notes-and-limits)
+
+## What's inside
+
+| Part | Who uses it | Local address | Code |
 |---|---|---|---|
-| **API** (REST + WebSocket) | everything talks to it | http://localhost:8000/docs | `backend/api/` |
+| **API** (REST + WebSocket) | the website and the app | http://localhost:8000/docs | `backend/api/` |
 | **Website**: one address, one login page | everyone | http://localhost:8001 | `backend/web/` + `web/` |
 | ↳ Shop | shoppers | `/` | `backend/web/customer/` + `web/customer/` |
 | ↳ Store Operations | owner · store manager · floor manager · worker | `/store` | `backend/web/store/` + `web/store/` |
-| ↳ Admin | you + your team | `/admin` | `backend/web/admin/` + `web/admin/` |
-| **Mobile app** (iOS + Android) | everyone | Expo | `app/` |
+| ↳ Admin | the FreshFlow platform team | `/admin` | `backend/web/admin/` + `web/admin/` |
+| **Phone app** (iOS + Android) | everyone | Expo Go | `app/` |
 
-The website has **one address and one login page**. After signing in, the role on the account decides which
-section opens: shoppers get the shop, store staff get `/store`, admins get `/admin`. The website and the
-phone app share one API and database.
+**One login for everybody.** The website and the app have a single login page. After signing in, the
+**role on the account** decides what opens: shoppers get the shop, store staff get Store Operations, admins get
+Admin. Opening another role's page sends you back to your own, and the API checks the role again on every request.
 
----
+## Features
 
-## Architecture
+### 🛒 For shoppers (website + app)
 
-```
- iOS / Android app (Expo)    Customer web    Store Ops web    Admin web      Exit-gate hardware
-          │                       │               │               │               │ X-Gate-Key
-          └──────── HTTPS (JWT) ──┴───────────────┴───────────────┴───────────────┘
-                                          │
-                          ┌───────────────▼────────────────┐
-                          │  FastAPI  (backend/api)        │   WebSocket /ws  ← live: family lists,
-                          │  routes → services → models    │   inventory, restock alerts, tasks,
-                          └───────┬───────────────┬────────┘   gate events, notifications
-                                  │               │
-                         PostgreSQL / SQLite   Stripe · Razorpay (UPI) · PayPal · Twilio · Google · Apple
-```
-
-* **Auth**: JWT bearer tokens. Email+password (bcrypt), phone OTP (Twilio), Google ID token, Sign in with Apple.
-* **Roles**: `customer`, `worker`, `floor_manager`, `store_manager`, `owner`, `admin`. Staff are scoped to their own store on every endpoint.
-* **Real time**: an in-process WebSocket hub with channels `list:<id>`, `store:<id>`, `user:<id>`, `admin`.
-* **Payments**: card, Apple Pay and Google Pay go through a Stripe PaymentIntent (the native PaymentSheet on the phone, the Payment Element on the web). UPI uses a Razorpay Payment Link. PayPal uses Orders v2. The server always re-verifies with the gateway before issuing a receipt. `PAYMENTS_MODE=mock` runs the whole flow without gateway accounts.
-* **Exit gate**: the receipt code is `FF1.<order>.<nonce>.<HMAC>`. Forged codes are rejected before any database lookup. A code is single-use, bound to one store, and expires after a configurable time.
-
-## Features → where they live
-
-### 1. Customer (web `web/customer` + phone app `app/`)
-| Feature | Implementation |
+| Feature | Details |
 |---|---|
-| Delivery / **store pickup** (slot booking with capacity) / **in-store** mode | `api/routes/cart.py`, `stores.py → /pickup-slots` |
-| Item **location** ("Aisle 4, Row 2") + running total | `Inventory.aisle/row`, shown on every product, list and cart line |
-| **Collaborative family lists**, live sync | `api/routes/lists.py` + WebSocket `list:<id>`; join by invite code |
-| **Efficient aisle routing** | `services/routing.py`: exact walking-distance matrix (aisles joined by front and back cross-aisles), then nearest-neighbour + 2-opt; drawn as an SVG store map |
-| **Smart cart**: in-store adds deduct shelf stock instantly | `cart.py::_set_line` → `services/inventory.adjust_stock` |
-| Barcode scanning | mobile `app/scan.tsx` (camera); web: type or scan into the field |
-| **One-tap checkout**: Stripe (card / Apple Pay / Google Pay), UPI, PayPal | `services/payments.py`, mobile `lib/payments.ts` |
-| **Digital receipt QR** → **exit gate verifies and opens** | `orders.py → receipt.png`, mobile `components/QRCode.tsx` (renders offline), `gate.py` |
-| Login: email, Google, Apple, phone OTP | `api/routes/auth.py`, `services/auth_providers.py`, mobile `app/login.tsx` |
-| Profile: payment methods (tokenised), dietary preferences (filters the catalogue), purchase history | `/me`, `/me/payment-methods`, `/orders` |
-| **Store locator + stock check before leaving home** | `/stores?lat&lng` (sorted by distance), `/stock-check?q=` |
+| **Three ways to shop** | Delivery, **store pickup** (time slots with capacity) or **in-store Scan & Go** |
+| **Item locations** | Every product shows its aisle and row, e.g. "Aisle 2, Row 4" |
+| **Shortest route** | Your list becomes a walking path through the store: exact aisle-to-aisle distances, then nearest-neighbour + 2-opt optimisation, drawn on an SVG store map |
+| **Family lists, live** | Share a list with an invite code. Items added at home appear on the shopper's route instantly |
+| **Smart cart** | Scan with the **camera (📷)** or type. Stock leaves the shelf count the moment an item is in your cart. Change quantities with − / + or remove with ✕, and the stock goes back |
+| **Running total** | Subtotal, offers, GST and total update with every scan |
+| **Pay on your phone** | Stripe (cards, Apple Pay, Google Pay), Razorpay UPI, PayPal. A sandbox mode needs no accounts |
+| **Exit-gate receipt** | A signed QR code. The gate verifies it in a second, and a copied or reused receipt is rejected |
+| **Stores & stock check** | Find nearby stores and check stock before leaving home. **Add** straight from the results |
+| **Profile** | Saved payment methods (tokenised), dietary preferences that filter the catalogue, purchase history, privacy policy, **delete my account** |
 
-### 2. Store Operations (`web/store`), role-aware menu
+### 🏪 For store teams (Store Operations)
+
 | Feature | Who |
 |---|---|
-| **Real-time inventory**: live quantity updates. Below threshold, a restock alert fires and a task is **auto-assigned** to the least-busy worker, who gets an alert | all staff (workers can only record restocks) |
-| **Business analysis**: net sales, gross profit and margin, profit after staff cost, best sellers, most-liked offers, **rush hours** + weekday×hour heatmap, category mix, fulfilment mix, low and dead stock, for **today / week / month / year / any custom range** | owner, store manager |
-| **Work assigning**: assign → employee alerted live → they start → mark done **with a report** → manager **reviews and rates** (★1–5) | managers assign; floor managers assign to workers |
-| **Shifts**: weekly grid, overlap protection, repeat for N days | managers |
-| **Attendance**: clock in/out, who came, at what time, when they left, hours, days present, wages earned | supervisors |
-| **Employee onboarding**: Store Manager raises → **Owner** approves / sends back / rejects → **Admin** issues credentials / sends back / rejects. A request sent back can be edited and resubmitted | store manager, owner |
-| Order fulfilment (pickup/delivery status), exit-gate monitor + simulator (with camera), offers, support tickets | as appropriate |
+| **Live inventory**: below its threshold an item raises a restock alert and **auto-assigns** a task to the least-busy worker | all staff |
+| **Business analysis**: net sales, gross profit and margin, profit after staff cost, best sellers, best offers, **rush hours**, category mix, low and dead stock, for today / week / month / year / any range | owner, store manager |
+| **Work & reviews**: assign → employee alerted live → done **with a report** → manager rates it ★1–5 | managers, floor managers |
+| **Shifts and attendance**: weekly rota, clock in/out, hours worked, wages earned | supervisors |
+| **Hiring chain**: store manager requests a new employee → **owner** approves → **admin** issues the login | store manager, owner |
+| Orders (pickup/delivery status), **exit-gate scanner** (camera), offers, support tickets | as appropriate |
 
-### 3. Admin Operations (`web/admin`)
-* Review credential requests and **issue logins** (temporary password, shown once; the employee is forced to change it at first login).
-* **Remove employees** who left or were fired: login revoked immediately, open tasks flagged for reassignment, attendance kept for payroll. Reset passwords.
-* All **stores** with owner details, employee lists (name, phone, joining date, wage), monthly KPIs, and onboarding of new stores (which creates the owner login and an exit gate).
-* **Store issues** (support tickets) with responses that notify the store.
-* Platform overview: sales across stores, pending work.
+### 🛡️ For admins
 
----
+- Approve credential requests and **issue logins** (temporary password, changed at first sign-in)
+- **Offboard employees**: login revoked at once, open tasks flagged, attendance kept for payroll
+- All **stores** with owners, employees, wages and monthly KPIs; onboard new stores
+- **Store issues** (support tickets) and a platform-wide sales overview
 
-## File structure
+## Screenshots
 
-Three main folders: **`backend/`** (all the Python server code), **`web/`** (the website's pages,
-styles and scripts) and **`app/`** (the iOS + Android app). The website and the app both talk to
-the same API in `backend/api`. The app has no server of its own, so there is no `backend/app`.
+| One login for everyone | Shop |
+|---|---|
+| <img src=".github/readme/login.png" alt="Login page" width="380"> | <img src=".github/readme/shop.png" alt="Shop" width="520"> |
+
+| Store Operations: business analysis | Admin: platform overview |
+|---|---|
+| <img src=".github/readme/store-analytics.png" alt="Store analytics" width="460"> | <img src=".github/readme/admin.png" alt="Admin overview" width="460"> |
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        A["📱 Phone app<br/>(Expo, iOS + Android)"]
+        W["🌐 Website<br/>shop · /store · /admin"]
+        G["🚪 Exit gate<br/>(QR check)"]
+    end
+    subgraph Backend["backend/ (Python)"]
+        WEB["backend/web<br/>FastAPI + Jinja2"]
+        API["backend/api<br/>FastAPI REST + WebSocket"]
+    end
+    DB[("PostgreSQL / SQLite")]
+    EXT["Stripe · Razorpay UPI · PayPal<br/>Google · Firebase · SSO · Twilio / SMS gateway"]
+
+    W --> WEB --> API
+    A -- "HTTPS + JWT" --> API
+    G -- "X-Gate-Key" --> API
+    API --> DB
+    API --> EXT
+    API -. "live updates (WebSocket)" .-> A
+    API -. "live updates (WebSocket)" .-> W
+```
+
+- **Auth:** JWT bearer tokens. Passwords hashed with bcrypt, OTP codes stored only as hashes.
+- **Roles:** `customer`, `worker`, `floor_manager`, `store_manager`, `owner`, `admin`. Staff only ever see their own store.
+- **Real time:** a WebSocket hub with channels `list:<id>`, `store:<id>`, `user:<id>` and `admin` for family lists, inventory, restock alerts, tasks, gate events and notifications.
+- **Payments:** the server always re-checks with the payment provider before issuing a receipt. `PAYMENTS_MODE=mock` runs the whole flow without provider accounts.
+- **Exit gate:** a receipt code looks like `FF1.<order>.<nonce>.<HMAC>`. Forged codes are rejected before any database lookup, and each code is single-use, tied to one store, and expires.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| API | Python 3.13, **FastAPI**, **SQLAlchemy 2.0**, Pydantic v2, PyJWT, bcrypt, WebSockets |
+| Website | **FastAPI + Jinja2** server-rendered pages, **htmx**, Chart.js, html5-qrcode (camera scanning) |
+| Phone app | **React Native + Expo SDK 58**, Expo Router, TypeScript, expo-camera, Stripe React Native |
+| Database | PostgreSQL (production) or SQLite (development) |
+| Payments | Stripe, Razorpay (UPI), PayPal, plus a built-in sandbox mode |
+| Sign-in | Email + password, phone OTP (Twilio Verify or a free Android SMS gateway), Google, Firebase email link, OpenID Connect SSO, Sign in with Apple |
+| Deploy | Render Blueprint (`render.yaml`), Docker Compose |
+
+## Project structure
+
+Three main folders: **`backend/`** (all Python server code), **`web/`** (the website's pages, styles and scripts)
+and **`app/`** (the phone app). The website and the app both use the same API.
 
 ```
 smart-cart/
-├── README.md
-├── .env.example                 # every setting, documented
-├── docker-compose.yml           # Postgres + API + website
-├── render.yaml                  # one-click cloud deploy: 4 services = 4 live links
-├── scripts/
-│   ├── dev.sh                   # run everything locally (seeds demo data)
-│   └── smoke_test.py            # end-to-end: every page, every role, Scan & Go → gate
-│
-├── backend/                     # ══ BACKEND (Python) ══════════════════════════════════
-│   ├── api/                     # ── the REST + WebSocket API, used by the website AND the app
-│   │   ├── .env                 # your secrets and settings (not in git; see .env.example)
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
+├── backend/                       ══ BACKEND (Python) ══
+│   ├── api/                       the REST + WebSocket API, used by the website AND the app
 │   │   ├── app/
-│   │   │   ├── main.py          # app factory, routers, CORS, lifespan
-│   │   │   ├── seed.py          # demo data: 3 stores, catalogue, staff, 60 days of sales
-│   │   │   ├── core/
-│   │   │   │   ├── config.py    # pydantic-settings (env vars)
-│   │   │   │   ├── database.py  # SQLAlchemy engine/session (SQLite or PostgreSQL)
-│   │   │   │   ├── security.py  # bcrypt, JWT, OTP hashing, signed receipt codes
-│   │   │   │   ├── deps.py      # current user, role guards, store scoping
-│   │   │   │   └── realtime.py  # WebSocket pub/sub hub
-│   │   │   ├── models/          # SQLAlchemy 2.0 ORM
-│   │   │   │   ├── user.py      # User(+roles), OTPCode, PaymentMethod, Notification
-│   │   │   │   ├── store.py     # Store(+aisle layout), ExitGate, GateEvent
-│   │   │   │   ├── catalog.py   # Category, Product, Inventory(aisle,row), Offer, RestockAlert
-│   │   │   │   ├── shopping.py  # ShoppingList, ListMember, ListItem, Cart, CartItem
-│   │   │   │   ├── order.py     # Order, OrderItem
-│   │   │   │   ├── staff.py     # CredentialRequest, Task, Shift, Attendance
-│   │   │   │   └── support.py   # SupportTicket
-│   │   │   ├── schemas/__init__.py  # Pydantic request/response models
-│   │   │   ├── services/
-│   │   │   │   ├── routing.py   # aisle route optimiser (distance matrix + 2-opt)
-│   │   │   │   ├── inventory.py # stock moves, thresholds, auto restock tasks
-│   │   │   │   ├── pricing.py   # subtotal, offers, delivery fee, GST
-│   │   │   │   ├── payments.py  # Stripe / Razorpay UPI / PayPal / mock adapters
-│   │   │   │   ├── orders.py    # cart → order → paid lifecycle
-│   │   │   │   ├── analytics.py # sales, profit, rush hours, offers, staff hours
-│   │   │   │   ├── auth_providers.py# Google & Apple token verification, SMS
-│   │   │   │   └── notify.py    # persisted + live notifications
-│   │   │   └── api/routes/
-│   │   │       ├── auth.py      # /auth/*, /me/*
-│   │   │       ├── stores.py    # store locator, catalogue, stock check, pickup slots
-│   │   │       ├── lists.py     # family lists + route
-│   │   │       ├── cart.py      # cart / smart cart
-│   │   │       ├── orders.py    # checkout, payment confirm, webhooks, receipts
-│   │   │       ├── gate.py      # exit-gate verification
-│   │   │       ├── store_ops.py # inventory, alerts, store orders, offers, gates
-│   │   │       ├── people.py    # credential requests, tasks, shifts, attendance
-│   │   │       ├── analytics.py # business analysis
-│   │   │       ├── support.py   # tickets (store side)
-│   │   │       ├── admin.py     # admin: approvals, stores, employees, tickets
-│   │   │       └── ws.py        # WebSocket endpoint with per-channel authorisation
-│   │   └── tests/               # pytest: 31 tests, run on SQLite and PostgreSQL
-│   │
-│   └── web/                     # ── the website's server side (FastAPI + Jinja2)
-│       ├── main.py              # one website: mounts the shop at /, /store and /admin
-│       ├── Dockerfile           # one image, APP=customer|store|admin (build from the repo root)
+│   │   │   ├── main.py            app factory, routers, CORS
+│   │   │   ├── seed.py            demo data: 3 stores, 51 products, staff, months of sales
+│   │   │   ├── core/              settings, database, security, role guards, WebSocket hub, phone numbers
+│   │   │   ├── models/            SQLAlchemy models: users, stores, catalogue, carts & lists, orders, staff, support
+│   │   │   ├── schemas/           Pydantic request/response models
+│   │   │   ├── services/          routing (aisle route), inventory, pricing, payments, orders,
+│   │   │   │                      analytics, sign-in providers, SSO, notifications
+│   │   │   └── api/routes/        auth, stores, lists, cart, orders, gate, store_ops, people,
+│   │   │                          analytics, support, admin, ws
+│   │   ├── tests/                 pytest: 33 tests (SQLite or PostgreSQL)
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   └── web/                       the website's server side
+│       ├── main.py                one website: shop at /, Store Operations at /store, Admin at /admin
+│       ├── shared/                API client, sign-in session, the one login page (signin.py)
+│       ├── customer/app.py        shop, cart, Scan & Go, lists, stores, orders, profile, barcode sheet
+│       ├── store/app.py           overview, tasks, inventory, orders, gate, shifts, attendance, team, analysis…
+│       ├── admin/app.py           overview, requests, stores, employees, tickets
 │       ├── requirements.txt
-│       ├── shared/
-│       │   ├── __init__.py      # API client, shared sign-in session, role → section, ₹ formatting
-│       │   └── signin.py        # the one login page for everybody
-│       ├── customer/app.py      # shop, cart, pay, Scan & Go, lists, orders, profile
-│       ├── store/app.py         # overview, tasks, inventory, orders, gate, shifts, attendance,
-│       │                        # team & onboarding, analysis, offers, support
-│       └── admin/app.py         # overview, requests, stores, employees, tickets
+│       └── Dockerfile
 │
-├── web/                         # ══ WEBSITE FRONTEND (HTML + CSS + JS, no Python) ═══════════
-│   ├── shared/
-│   │   ├── templates/           # base layout, login page, email-link page, flash messages
-│   │   └── static/              # app.css design system, live.js, vendored Chart.js/htmx
-│   ├── customer/templates/      # customer pages
-│   ├── store/templates/         # store operations pages
-│   └── admin/templates/         # admin pages
+├── web/                           ══ WEBSITE PAGES (HTML, CSS, JS) ══
+│   ├── shared/templates/          layout, login page, privacy policy, email-link page
+│   ├── shared/static/             app.css, live.js, vendored htmx / Chart.js / html5-qrcode
+│   ├── customer/templates/        shop pages
+│   ├── store/templates/           Store Operations pages
+│   └── admin/templates/           admin pages
 │
-└── app/                         # ══ PHONE APP: iOS + Android (Expo SDK 58, TypeScript) ════
-    ├── app.json                 # permissions, Apple Sign-In, Stripe/Google Pay plugins
-    ├── eas.json                 # cloud builds for the App Store / Play Store
-    └── src/
-        ├── app/                 # screens (file-based routes)
-        │   ├── _layout.tsx      # providers: Stripe, auth, cart
-        │   ├── login.tsx        # email · phone OTP · Google · Apple · email link · SSO
-        │   ├── (tabs)/          # shopper app: shop, Scan & Go, lists, orders, profile
-        │   ├── staff/           # store operations app
-        │   ├── admin/           # admin app
-        │   ├── cart.tsx         # checkout: slots, address, offers, Apple/Google Pay/UPI
-        │   ├── scan.tsx         # camera barcode → smart cart
-        │   ├── stores.tsx       # GPS store locator + stock check
-        │   ├── list/[id].tsx    # live-synced list
-        │   └── order/[id].tsx   # receipt QR for the exit gate
-        ├── components/          # ui kit, ProductCard, StoreMap (SVG), QRCode (offline)
-        └── lib/                 # api client, auth, roles, sign-in, cart, live (WebSocket), payments
+├── app/                           ══ PHONE APP (Expo, TypeScript) ══
+│   ├── src/app/                   screens: login, (tabs) shopper app, staff/, admin/, cart, scan, stores…
+│   ├── src/components/            UI kit, product card, store map, offline QR code
+│   ├── src/lib/                   API client, auth, roles, sign-in, cart, live updates, payments
+│   ├── store-listing/             Google Play texts, graphics and step-by-step guide (for later)
+│   ├── app.json · eas.json        app settings and build profiles
+│   └── package.json
+│
+├── scripts/
+│   ├── dev.sh                     start everything locally (creates the venv, seeds demo data)
+│   └── smoke_test.py              end-to-end test of every page and role
+├── .env.example                   every setting, documented
+├── render.yaml                    one-click cloud deploy (database + API + website)
+└── docker-compose.yml             PostgreSQL + API + website in Docker
 ```
 
-## One login, the right app for each role
+## Getting started
 
-Everyone signs in on the same login screen. The **role stored on the account** decides which app opens:
+### What you need
+- **Python 3.11+** (3.13 recommended)
+- **Node.js LTS**, only for the phone app
+- The free **Expo Go** app on your phone (App Store / Play Store), only for the phone app
 
-| Account role | Phone app opens | Website |
-|---|---|---|
-| `customer` | Shopping app (shop, Scan & Go, family lists, orders) | Shop (`/`) |
-| `worker`, `floor_manager`, `store_manager`, `owner` | **Store operations** (`app/src/app/staff`): overview and clock-in, tasks, live inventory and restocks, orders, exit-gate QR scanner; analytics and team for managers | Store Operations (`/store`) |
-| `admin` | **Admin** (`app/src/app/admin`): overview, credential requests, stores, employees, store issues | Admin (`/admin`) |
+### 1. Get the code
+```bash
+git clone https://github.com/mayankbhambhu/smart-cart.git
+```
+```bash
+cd smart-cart
+```
 
-The routing lives in `app/src/lib/roles.ts`. Each section's layout also checks the role, so an account can never open another role's app, and the API enforces the same permissions on every request. Staff signing in with a temporary password from the admin team are sent to "Set your password" first. The website works the same way: one address and **one login page** (Email · Phone OTP · Sign up, plus Google, email link and SSO; the code is in `backend/web/shared/signin.py`, the page in `web/shared/templates/_login.html`). After signing in you go straight to your section, and opening another section's page sends you back to your own. `backend/web/main.py` puts the three sections together; they share one sign-in cookie, so logging out once logs you out everywhere.
-
-## Sign-in options
-
-The login screen (phone app and website) offers: **email + password**, **phone OTP**,
-**Sign in with Google**, **Email me a sign-in link** (Firebase magic link), **single sign-on (SSO)**
-and, on iPhone, **Sign in with Apple**. Each button switches on as soon as its settings are filled in
-(`GET /auth/providers` tells the apps what is enabled); until then it shows "not set up". Whatever
-the method, the **role on the account** still decides which app opens.
-
-| Method | Who can use it | Backend settings |
-|---|---|---|
-| Google button | anyone; links to an existing account only if Google says the email is verified | `GOOGLE_WEB_CLIENT_ID` (+ `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` for the phone app) |
-| Email magic link (Firebase) | anyone; a new email becomes a shopper account | `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `EMAIL_LINK_CONTINUE_URL` |
-| Phone OTP (SMS) | anyone; a new number becomes a shopper account | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, **or free:** `SMSGATE_USERNAME`, `SMSGATE_PASSWORD` (without any, development mode shows the code on screen) |
-| SSO (OpenID Connect) | **existing accounts only** (staff are still created through the approval chain) | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `API_PUBLIC_URL`, `SSO_ALLOWED_REDIRECTS` |
-
-Removed (deactivated) employees are refused by every method.
-
-**Google:** in Google Cloud Console → *APIs & Services → Credentials*, create an OAuth client of type
-*Web application*. Add the website's address (e.g. `http://localhost:8001`) under *Authorized
-JavaScript origins*. For the phone app also create iOS and Android clients. Put the web one in
-`GOOGLE_WEB_CLIENT_ID`, and give the app its IDs through `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`,
-`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`. Google sign-in on the
-phone needs a development build (`npx expo run:android` / `run:ios`); it does not run inside Expo Go.
-
-**Email magic link:** in the Firebase console create a project, add a *Web app* (copy its `apiKey`,
-`authDomain`, `projectId`), then *Authentication → Sign-in method → Email/Password* → enable
-**Email link (passwordless sign-in)**. Under *Authentication → Settings → Authorized domains* add the
-domain of the page in `EMAIL_LINK_CONTINUE_URL` (`localhost` is allowed by default). The link opens
-that page: on a computer it finishes sign-in there; when the request came from the phone app it
-forwards the link into the app. **To use it from a phone, that page must be reachable from the
-phone on an authorized domain.** Use the deployed customer site, or a tunnel to it; a LAN IP
-address can't be authorized.
-
-**Phone OTP by SMS:** create a free Twilio account. In *Verify → Services* create a service with SMS
-switched on, then copy the Account SID, Auth Token and the service's SID (`VA…`) into the settings.
-Twilio Verify makes, sends and checks the code. As far as we know it also takes care of India's DLT
-SMS rules, which plain SMS would need you to register for. People can type numbers any way
-(`98111 11111`, `+91 98111-11111`); they're normalised to `+919811111111`, with
-`PHONE_DEFAULT_COUNTRY_CODE` for 10-digit numbers. A Twilio *trial* account can only text numbers
-you've verified in the Twilio console.
-
-**Free alternative: SMS Gateway for Android.** Install the open-source *SMS Gateway for Android*
-app (sms-gate.app, Android 5+) on a spare Android phone with a SIM and an SMS pack. Turn on *Cloud
-server*, tap *Start*, and copy the username and password it shows into `SMSGATE_USERNAME` and
-`SMSGATE_PASSWORD`. The backend generates the code and the phone texts it from its own SIM. With
-the app's *Local server* instead, also set `SMSGATE_URL=http://<phone-ip>:8080/message` (the phone
-and the backend must be on the same Wi-Fi). Twilio Verify wins if both are configured.
-
-**SSO:** register an app with your identity provider (Microsoft Entra ID, Google Workspace, Okta,
-Auth0, Keycloak...). Set its redirect URI to `{API_PUBLIC_URL}/auth/sso/callback` and copy the
-issuer URL, client ID and secret into the settings. `OIDC_LABEL` is the button text (e.g. "Sign in
-with Microsoft"). The flow uses the authorization code with PKCE, a one-time state and a nonce, and
-checks the ID token signature, issuer and audience. Only a 2-minute single-use code is passed back
-to the website or app, never the session token. Return addresses must start with an entry in
-`SSO_ALLOWED_REDIRECTS`; remove `exp://` (Expo Go) in production.
-
-## Run it locally
-
+### 2. Start the API and the website
 ```bash
 ./scripts/dev.sh
 ```
+The first run creates a Python virtual environment, installs everything and fills an SQLite database with demo data.
+Then open **http://localhost:8001**.
 
-That creates a virtualenv, seeds demo data into SQLite and starts the API and the website.
-Open **http://localhost:8001** and sign in with any account below. The website opens the right section for it.
-Every demo account uses the password **`Password@123`**:
+### 3. Sign in with a demo account
+Every demo account uses the password **`Password@123`**.
 
-| Opens | Logins |
+| Account | Opens |
 |---|---|
-| Shop (`/`) | `asha@example.com`, `rohan@example.com` (they share the *Verma Family Weekly* list) |
-| Store Operations (`/store`) | `owner.blr01@freshflow.app`, `manager.blr01@…`, `floor1.blr01@…`, `worker1.blr01@…` (also `blr02`, `mum01`) |
-| Admin (`/admin`) | `admin@freshflow.app` |
+| `asha@example.com`, `rohan@example.com` (they share the *Verma Family Weekly* list) | Shop |
+| `owner.blr01@freshflow.app`, `manager.blr01@…`, `floor1.blr01@…`, `worker1.blr01@…` (also `blr02`, `mum01`) | Store Operations |
+| `admin@freshflow.app` | Admin |
 
-**Try the headline flow:** log in as Rohan → **Scan & Go** → pick a store. In a second
-browser, log in as Asha and add "Curd" to the family list. Rohan's route re-plans live. Tap
-**Picked ✓** on a few items, then **Checkout** and **Pay**. Copy the receipt code into
-Store Ops → **Exit gates** to see the gate open. Re-scanning within 2 minutes is allowed
-(the shopper tapped twice); reusing the receipt after that is rejected.
+To start over with fresh demo data (stop the servers first):
+```bash
+cd backend/api && ../../.venv/bin/python -m app.seed --reset && cd ../..
+```
 
-With PostgreSQL instead of SQLite: `docker compose up --build`, then `docker compose exec api python -m app.seed`.
+### 4. Try the headline flow
+1. Sign in as **Rohan** → **Scan & Go** → pick a store. You'll see your family list as a route through the aisles.
+2. In a second browser, sign in as **Asha** and add "Curd" to the family list. Rohan's route updates live.
+3. Scan items with **📷**. Open the **demo barcode sheet** (link under the camera, or `/barcodes`) on another screen, or print it.
+4. **Checkout** → **Pay**.
+5. Sign in as `worker1.blr01@freshflow.app`, go to **Exit gates**, and scan or paste the receipt code. 🟢 Gate open.
+   Re-scanning within 2 minutes is allowed (the shopper tapped twice); reusing the receipt later is rejected.
 
-### Mobile app (on your phone)
+### 5. Run the phone app (Expo Go)
+Keep `./scripts/dev.sh` running. In a **second terminal**:
+```bash
+cd app
+```
+```bash
+npm install
+```
+```bash
+npx expo start
+```
+Scan the QR code with the **Camera app** (iPhone) or inside **Expo Go** (Android). The phone and the computer must be on the
+**same Wi-Fi**; the app finds the API on your computer by itself.
 
-You need [Node.js](https://nodejs.org) (LTS) on your computer and the free **Expo Go** app on
-your phone (App Store / Play Store). The phone and computer must be on the **same Wi-Fi**.
+<details>
+<summary>The app can't connect?</summary>
 
-1. Start the backend with `./scripts/dev.sh`.
-2. In a **second terminal**:
+- Check both devices are on the same Wi-Fi.
+- On macOS, allow incoming connections for Python (System Settings → Network → Firewall).
+- Open `http://<your computer's IP>:8000/health` in the phone's browser. It should say `"status":"ok"`.
+- The login screen shows the server address the app is using (in development).
+</details>
 
-   ```bash
-   cd app
-   ```
+## Sign-in options
 
-   ```bash
-   npm install
-   ```
+The login page offers **email + password**, **phone OTP**, **Sign in with Google**, **email me a sign-in link**
+(Firebase), **single sign-on (SSO)** and, on iPhone, **Sign in with Apple**. Each button turns on as soon as its settings
+are filled in; until then it says "not set up". Whatever the method, the role on the account decides what opens.
 
-   ```bash
-   npx expo start
-   ```
+| Method | Who can use it | Settings (in `backend/api/.env`) |
+|---|---|---|
+| Google | anyone; joins an existing account only if Google says the email is verified | `GOOGLE_WEB_CLIENT_ID` (+ `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID` for the app) |
+| Email link (Firebase) | anyone; a new email becomes a shopper | `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `EMAIL_LINK_CONTINUE_URL` |
+| Phone OTP | anyone; a new number becomes a shopper | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, **or free:** `SMSGATE_USERNAME`, `SMSGATE_PASSWORD` |
+| SSO (OpenID Connect) | **existing accounts only** (staff are still created through the hiring chain) | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `API_PUBLIC_URL`, `SSO_ALLOWED_REDIRECTS` |
 
-   The app finds the API on your computer by itself (it uses the same address the phone
-   loaded the app from). The login screen shows the server address it is using.
-3. Scan the QR code that appears: with the **Camera app** on iPhone, or from inside **Expo Go**
-   on Android. The app opens; log in with `asha@example.com` / `Password@123`.
+Removed employees are refused by every method. Without any SMS settings, development mode shows the OTP on screen.
 
-Simulators work too: press `i` (iOS Simulator, needs Xcode) or `a` (Android emulator) in the
-Expo terminal.
+<details>
+<summary><b>Google</b> setup</summary>
 
-Troubleshooting: if the app can't log in ("Network request failed"), check that both devices
-are on the same Wi-Fi, that the IP is right, and that macOS allowed incoming connections for
-Python (System Settings → Network → Firewall). Open `http://<IP>:8000/health` in the phone's
-browser to test.
+In Google Cloud Console → *APIs & Services → Credentials*, create an OAuth client of type *Web application*. Add the website's
+address with nothing after the port (e.g. `http://localhost:8001` and `http://localhost`) under **Authorized JavaScript
+origins**. Put the client ID in `GOOGLE_WEB_CLIENT_ID`. For the phone app, also create iOS and Android clients and give the
+app their IDs through `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and
+`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`. Google sign-in in the app needs a development build; it doesn't run inside Expo Go.
+</details>
 
-Shopping, lists, routing, barcode scanning, receipts and sandbox payments work in Expo Go.
-Real Apple Pay / Google Pay and Sign in with Apple need a **development build**
-(`npx eas-cli build --profile development`, or `npx expo run:ios` / `npx expo run:android`).
-App Store / Play Store builds: `npx eas-cli build --profile production`.
+<details>
+<summary><b>Email link (Firebase)</b> setup</summary>
 
-### Tests
+Create a Firebase project and add a *Web app* (copy its `apiKey`, `authDomain` and `projectId`). In *Authentication → Sign-in
+method → Email/Password*, enable **Email link (passwordless sign-in)**. Under *Authentication → Settings → Authorized
+domains*, add the domain of `EMAIL_LINK_CONTINUE_URL` (`localhost` is allowed by default). On a computer the link finishes
+sign-in on that page; from the phone app it forwards the link into the app. From a phone, that page must be reachable on an
+authorized domain (the deployed website or a tunnel), because a LAN IP address can't be authorized.
+</details>
+
+<details>
+<summary><b>Phone OTP by SMS</b>: Twilio, or free with your own Android phone</summary>
+
+**Twilio Verify:** create a Twilio account, then in *Verify → Services* create a service with SMS on. Copy the Account SID,
+Auth Token and the service SID (`VA…`). Twilio makes, sends and checks the code. A trial account can only text numbers you've
+verified in the Twilio console.
+
+**Free: SMS Gateway for Android.** Install the open-source *SMS Gateway for Android* app (sms-gate.app, Android 5+) on a
+spare phone with a SIM and an SMS pack. Turn on *Cloud server*, tap *Start*, and copy the username and password it shows into
+`SMSGATE_USERNAME` and `SMSGATE_PASSWORD`. FreshFlow makes the code and the phone texts it from its own SIM. For the app's
+*Local server* mode, also set `SMSGATE_URL=http://<phone-ip>:8080/message`. Twilio Verify wins if both are set.
+
+Numbers can be typed any way (`98111 11111`, `+91 98111-11111`); they're stored as `+919811111111`, using
+`PHONE_DEFAULT_COUNTRY_CODE` for 10-digit numbers.
+</details>
+
+<details>
+<summary><b>SSO</b> setup</summary>
+
+Register an app with your identity provider (Microsoft Entra ID, Google Workspace, Okta, Auth0, Keycloak…). Set its
+redirect URI to `{API_PUBLIC_URL}/auth/sso/callback` (in Google Cloud this goes under *Authorized redirect URIs*, not
+JavaScript origins). Copy the issuer URL, client ID and secret into the settings. `OIDC_LABEL` is the button text. The flow
+uses authorization code + PKCE, a one-time state and a nonce, and checks the ID token's signature, issuer and audience. Only a
+2-minute single-use code goes back to the website or app, never the session token. Return addresses must start with an entry
+in `SSO_ALLOWED_REDIRECTS`; remove `exp://` (Expo Go) in production.
+</details>
+
+## Configuration
+
+The API's settings live in **`backend/api/.env`** (never committed). [`.env.example`](.env.example) lists and explains
+every one. Write values without quotes or spaces around `=`. The rows marked *environment* are read from the environment
+instead: on Render, `render.yaml` sets them; locally the defaults are fine.
+
+| Item | Settings | Without it |
+|---|---|---|
+| Stripe (cards, Apple Pay, Google Pay) | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYMENTS_MODE=live` | sandbox payments |
+| UPI (Razorpay Payment Links) | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`; webhook → `/payments/razorpay/webhook` | sandbox payments |
+| PayPal | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | sandbox payments |
+| Sign-in providers | see [Sign-in options](#sign-in-options) | button shows "not set up" |
+| Sign in with Apple | `APPLE_BUNDLE_IDS` and an Apple developer account | iPhone button errors |
+| Production secrets | `SECRET_KEY`, `DEBUG=false`, `CORS_ORIGINS`; *environment:* `SESSION_SECRET` (website) | insecure development defaults |
+| Demo data on a public server | *environment:* `SEED_PASSWORD` (secret password for demo accounts), `SEED_HISTORY_DAYS` | `Password@123`, 60 days |
+| Website | *environment:* `API_URL`, `PUBLIC_API_URL`, `SITE_URL`, `SUPPORT_EMAIL` (shown on `/privacy`) | localhost defaults, generic contact text |
+
+## Testing
 
 ```bash
 cd backend/api && ../../.venv/bin/python -m pytest -q
 ```
-
-```bash
-cd backend/api && TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_test ../../.venv/bin/python -m pytest -q
-```
+33 API tests: shopping flows, live lists, Scan & Go → payment → exit gate, store operations, the hiring chain, every
+sign-in method (with a fake SSO provider), phone numbers and account deletion. To run them on PostgreSQL, set
+`TEST_DATABASE_URL=postgresql://user:pass@localhost/freshflow_test` before the command.
 
 ```bash
 .venv/bin/python scripts/smoke_test.py
 ```
-
-The smoke test needs the API and the website running (`./scripts/dev.sh`). It also checks that every role lands in the right section and can't open the others.
+End-to-end test against the running servers (`./scripts/dev.sh`). It signs in as every role, checks each lands in the right
+section and can't open the others, opens every page, and runs Scan & Go → pay → exit gate.
 
 ```bash
 cd app && npx tsc --noEmit
 ```
+Type-checks the phone app.
 
-## Going live: what you need to plug in
+## Deployment
 
-| Item | Setting(s) | Without it |
-|---|---|---|
-| Stripe (cards, **Apple Pay**, **Google Pay**) | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYMENTS_MODE=live`; Apple Pay merchant ID `merchant.app.freshflow` | sandbox mock payments |
-| **UPI** (Razorpay Payment Links) | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`; webhook → `/payments/razorpay/webhook` | sandbox mock |
-| PayPal | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | sandbox mock |
-| Google login | `GOOGLE_CLIENT_IDS` (API) + `extra.googleClientIds` (mobile) | button disabled |
-| Apple login | `APPLE_BUNDLE_IDS`, Apple developer account | iOS button errors |
-| Phone OTP SMS | `TWILIO_*` or `SMSGATE_*` (free) | code shown on screen in DEBUG |
-| Production secrets | `SECRET_KEY`, `SESSION_SECRET`, `DEBUG=false`, `CORS_ORIGINS` | insecure defaults |
+**Render (free plan):** push to GitHub, then on [render.com](https://render.com) choose **New → Blueprint** and pick this
+repository. `render.yaml` creates the database, the API (`freshflow-api`) and the website (`freshflow-web`). The demo data is
+created on first start with a secret `SEED_PASSWORD` (see it in Render → freshflow-api → Environment). If Render gives a
+service a different address, update the addresses in `render.yaml` and `app/eas.json`.
 
-**Deploy:** push to GitHub, then on Render choose *New → Blueprint* and pick `render.yaml`.
-That creates the database, the API and the website. Update `API_URL` / `PUBLIC_API_URL` if your API URL differs
-(step-by-step: `app/store-listing/PLAY_STORE_GUIDE.md`, step 1).
+> Free Render services sleep after about 15 minutes without visitors (the next visit takes about a minute), and a free
+> database expires after 30 days. Upgrade the plans in `render.yaml` for real use.
 
-## Publishing the phone app on Google Play
+**Docker:**
+```bash
+docker compose up --build
+```
+This runs PostgreSQL, the API and the website (http://localhost:8001). Then add the demo data:
+```bash
+docker compose exec api python -m app.seed
+```
 
-Step-by-step guide: [`app/store-listing/PLAY_STORE_GUIDE.md`](app/store-listing/PLAY_STORE_GUIDE.md).
-Store texts, form answers and graphics: [`app/store-listing/`](app/store-listing/).
-Android package ID: `com.mayankbhambhu.freshflow`.
+## Phone app: today and next
 
-What's already in place for Google Play's rules:
-* A public privacy policy at `/privacy` on the website, linked from the app's login and profile screens.
-* Account deletion in the app (Profile → Delete my account) and on the web (`/account/delete`), via `POST /me/delete`.
-  It erases the shopper's personal data and keeps past orders anonymously.
-* Only the permissions the app needs: internet, vibration, camera (barcodes, no microphone) and location (store finder).
-* On the public server (`render.yaml`) the demo accounts get a secret password (`SEED_PASSWORD`). Neither the website nor the app lists demo logins on the login page.
-  The app shows its server address only during development (Expo Go), never in store builds.
+**Today:** the iOS and Android app runs in **Expo Go**. Shopping, Scan & Go with the camera, family lists, routes, receipts,
+sandbox payments, and the store and admin sections all work there.
+
+**Next:** publishing to Google Play and the App Store. The groundwork is ready:
+- package ID `com.mayankbhambhu.freshflow`, app icon and splash screen
+- build profiles in `eas.json`
+- store texts and graphics, plus a step-by-step guide, in [`app/store-listing/`](app/store-listing/PLAY_STORE_GUIDE.md)
+
+Real Apple Pay / Google Pay, Google sign-in and Sign in with Apple need a development or store build
+(`npx eas-cli build`), not Expo Go.
+
+## Security and privacy
+
+- **Account deletion:** shoppers can delete their account in the app (Profile → Delete my account) or on the web
+  (`/account/delete`). Personal data is erased; past orders are kept without personal details for tax records.
+- **Privacy policy** at `/privacy`, linked from the login and profile screens.
+- **Role checks everywhere:** the website, the app and the API each check the role; staff only see their own store.
+- **No card numbers stored:** only the payment provider's token and a label like "Visa •••• 4242".
+- **Hashed secrets:** passwords with bcrypt; OTP and single-use sign-in codes stored only as hashes.
+- **Signed exit-gate receipts** that can't be forged or reused.
+- **Few phone permissions:** internet, camera (barcodes only, no microphone) and location (store finder only).
+- **Secrets stay out of git:** `backend/api/.env` is ignored; a public server uses a secret demo password.
 
 ## Design notes and limits
 
-* Inventory is decremented **when an item enters an in-store smart cart** (as specified) and
-  restored if it is removed. Delivery and pickup orders decrement at payment. A production
-  system would also expire abandoned in-store carts (a scheduled job calling `DELETE /cart`).
-* The WebSocket hub is in-process. To run more than one API instance, add Redis pub/sub
-  (the `REDIS_URL` setting is reserved for this).
-* Analytics aggregate in Python so the same code runs on SQLite and PostgreSQL. At large
-  scale, move them to SQL views or a warehouse; the function signatures stay the same.
-* Tables are created with `create_all` on startup. Add Alembic migrations before the first production schema change.
+- In Scan & Go, stock leaves the shelf count **when an item enters the cart** and returns if it's removed. Delivery and
+  pickup orders reduce stock at payment. A production system would also clear abandoned in-store carts with a scheduled job.
+- The WebSocket hub runs inside one API process. To run several API servers, add Redis pub/sub (`REDIS_URL` is reserved).
+- Analytics are computed in Python so the same code runs on SQLite and PostgreSQL; at large scale, move them to SQL views.
+- Tables are created on startup. Add Alembic migrations before the first production schema change.
+- The demo products use made-up EAN-13 barcodes; use the demo barcode sheet (`/barcodes`) to try scanning.
+
+---
+
+<div align="center">
+Built as a capstone project for <b>Python Application Programming</b>.
+</div>
