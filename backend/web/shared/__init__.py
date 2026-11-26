@@ -176,6 +176,9 @@ def make_app(name: str, template_dir: Path, accent: str, prefix: str = "") -> tu
     app.mount("/static", StaticFiles(directory=SHARED_DIR / "static"), name="static")
     templates = Jinja2Templates(directory=[template_dir, SHARED_DIR / "templates"])
     templates.env.filters.update(inr=inr, dt=dt, nice=nice)
+    # Version stamp for /static links (?v=…): browsers fetch fresh CSS/JS after every update.
+    static_v = int(max((f.stat().st_mtime for f in (SHARED_DIR / "static").rglob("*") if f.is_file()), default=0))
+    templates.env.globals["STATIC_V"] = static_v
     templates.env.globals.update(PUBLIC_API_URL=PUBLIC_API_URL, APP_ACCENT=accent, APP_NAME=name,
                                  SUPPORT_EMAIL=SUPPORT_EMAIL, P=prefix,
                                  signin_providers=signin_providers)
