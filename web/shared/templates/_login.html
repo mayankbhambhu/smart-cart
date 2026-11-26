@@ -107,12 +107,14 @@ function initGoogle() {
     google.accounts.id.initialize({ client_id: {{ p.google.web_client_id|tojson }}, callback: (resp) => postSignin('/auth/google', { credential: resp.credential }) });
     google.accounts.id.renderButton(document.getElementById('gsi-button'), { theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', width: 360 });
   } catch (e) { return googleUnavailable(e.message); }
-  // A working button grows to about 360×40 within a moment; a refused one stays 0×0.
+  // Google normally draws a visible ~360×40 button within a moment. Only if nothing visible appears do we
+  // swap in our own button.
   let tries = 0;
   const check = setInterval(() => {
-    const f = document.querySelector('#gsi-button iframe');
-    if (f && f.getBoundingClientRect().width > 0) return clearInterval(check);
-    if (++tries >= 12) { clearInterval(check); googleUnavailable('Google did not draw the button (origin not authorised or unknown client ID)'); }
+    const drawn = [...document.querySelectorAll('#gsi-button *')].some((e) => {
+      const r = e.getBoundingClientRect(); return r.width > 100 && r.height > 20; });
+    if (drawn) return clearInterval(check);
+    if (++tries >= 15) { clearInterval(check); googleUnavailable('Google did not draw the button (origin not authorised or unknown client ID)'); }
   }, 400);
 }
 </script>
